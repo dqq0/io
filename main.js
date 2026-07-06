@@ -101,10 +101,15 @@ document.querySelectorAll('td.asignatura__normal').forEach(celda => {
           nivel_profundidad = 1; // Introducciones
         }
 
+        let rowIndex = 0;
+        let tr = celda.closest('tr');
+        if (tr && tr.parentNode) rowIndex = Array.from(tr.parentNode.children).indexOf(tr);
+
         nodes.add({
           id: id,
           label: `<b>${codigo}</b>\n${nombre}`,
-          level: semestre,
+          x: semestre * 350,
+          y: rowIndex * 120,
           color: colorObj,
           shape: 'box',
           margin: { top: 15, bottom: 15, left: 20, right: 20 },
@@ -114,7 +119,8 @@ document.querySelectorAll('td.asignatura__normal').forEach(celda => {
           _dificultad: diff,
           _competencias: comps,
           _esProtegido: esProtegido,
-          _originalColor: colorObj
+          _originalColor: colorObj,
+          _originalRow: rowIndex
         });
         addedNodes.add(id);
       }
@@ -166,17 +172,8 @@ document.querySelectorAll('td.asignatura__normal').forEach(celda => {
       if (!network) {
         const data = buildGraphData();
         const options = {
-          layout: {
-            hierarchical: {
-              enabled: true,
-              direction: 'LR', // De Izquierda a Derecha
-              sortMethod: 'directed',
-              nodeSpacing: 100,      // Mucho más espacio vertical
-              levelSeparation: 350,  // Columnas más separadas y ordenadas
-              treeSpacing: 100
-            }
-          },
-          physics: { enabled: false }, // Sin físicas libres, fijos a la capa jerárquica
+          layout: { hierarchical: false }, // Apagamos la jerarquía estricta para usar Coordenadas Absolutas (Grid Manual)
+          physics: { enabled: false }, // Sin físicas, los nodos se quedarán en su X e Y asignados de forma rígida
           edges: {
             smooth: {
               type: 'cubicBezier',
@@ -620,9 +617,27 @@ document.querySelectorAll('td.asignatura__normal').forEach(celda => {
       semesterLoads[assignedS] = (semesterLoads[assignedS] || 0) + node._dificultad;
       unassigned--;
 
-      // Actualizar el nodo en Vis.js
-      node.level = assignedS;
-      dsNodes.update({ id: node.id, level: assignedS });
+      // Actualizar el nodo en Vis.js usando Grid Layout Manual
+      let currentX = assignedS * 350;
+      let currentY = (node._originalRow || 0) * 120;
+      
+      // Lógica simple anti-colisión: si la casilla (x,y) ya está ocupada por otro nodo procesado, bajarlo
+      let overlap = true;
+      let antiInfinite = 0;
+      while (overlap && antiInfinite < 20) {
+        overlap = false;
+        allNodes.forEach(n => {
+           if (n.id !== node.id && n.x === currentX && n.y === currentY) {
+              overlap = true;
+              currentY += 120; // Bajar a la siguiente fila
+           }
+        });
+        antiInfinite++;
+      }
+      
+      node.x = currentX;
+      node.y = currentY;
+      dsNodes.update({ id: node.id, x: node.x, y: node.y });
 
       // Liberar sucesores (Reducir inDegree)
       adjList[node.id].forEach(successorId => {
