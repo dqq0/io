@@ -467,13 +467,16 @@ document.querySelectorAll('td.asignatura__normal').forEach(celda => {
     const jaccardSetting = document.getElementById('selectJaccard').value;
     let threshold = 2.0; // Desactivado por defecto
     let maxLoad = 26; // Carga muy alta si no fusionamos (para que el DAG no colapse)
+    let maxSemesters = 10; // Si no hay Jaccard, respetamos los 10 semestres originales
 
     if (jaccardSetting === 'full') {
        threshold = 0.75;
        maxLoad = 12; // Muy comprimido, ideal para fusión
+       maxSemesters = 7; // Estándar Bolonia estricto
     } else if (jaccardSetting === 'light') {
        threshold = 0.90;
        maxLoad = 18; // Punto medio
+       maxSemesters = 8;
     }
 
     // 1.5 Fusión por Jaccard
@@ -614,9 +617,9 @@ document.querySelectorAll('td.asignatura__normal').forEach(celda => {
         minS = 2;
       }
 
-      // Regla 3: Balance de Carga Dinámico, techo S=7
+      // Regla 3: Balance de Carga Dinámico
       let assignedS = minS;
-      while (assignedS < 7) {
+      while (assignedS < maxSemesters) {
         let currentLoad = semesterLoads[assignedS] || 0;
         if (currentLoad + node._dificultad <= maxLoad || currentLoad === 0) {
           break;
@@ -624,14 +627,14 @@ document.querySelectorAll('td.asignatura__normal').forEach(celda => {
         assignedS++;
       }
 
-      // Regla Extremo Derecho: Forzar Titulación/Prácticas a S7
+      // Regla Extremo Derecho: Forzar Titulación/Prácticas al último semestre
       if (node._nivel_profundidad === 4) {
-        assignedS = 7;
+        assignedS = maxSemesters;
       }
 
-      // Comprimir todo al límite de 7 para cumplir el estándar de Bolonia
-      if (assignedS > 7 && node._nivel_profundidad !== 4) {
-        assignedS = 7;
+      // Comprimir todo al límite establecido (Bolonia u original)
+      if (assignedS > maxSemesters && node._nivel_profundidad !== 4) {
+        assignedS = maxSemesters;
       }
 
       // Registrar asignación
