@@ -362,6 +362,11 @@ document.querySelectorAll('td.asignatura__normal').forEach(celda => {
     }
   });
 
+  document.getElementById('btnToggleSettings').addEventListener('click', function () {
+    const panel = document.getElementById('settingsPanel');
+    panel.style.display = panel.style.display === 'none' || panel.style.display === '' ? 'flex' : 'none';
+  });
+
   // --- Lógicas I.O. en el Grafo ---
   document.getElementById('btnGraphCPM').addEventListener('click', function () {
     if (!network) return;
@@ -400,22 +405,75 @@ document.querySelectorAll('td.asignatura__normal').forEach(celda => {
     const dsEdges = network.body.data.edges;
     let allNodes = dsNodes.get();
 
-    // 1. Fusión por Jaccard
+    // 0. Filtrado por Mención (Major/Minor Model)
+    const mencion = document.getElementById('selectMencion').value;
+    if (mencion !== 'general') {
+      let nodosAEliminar = [];
+      allNodes.forEach(n => {
+        // Solo descartamos ramos avanzados (nivel_profundidad 3) que no son protegidos
+        if (n._nivel_profundidad === 3 && !n._esProtegido) {
+          let hasGestion = n._competencias.includes('gestion') || n._competencias.includes('economia');
+          let hasFisicaAvanzada = n._competencias.includes('electromagnetismo') || n._competencias.includes('termodinamica');
+          let hasSostenibilidad = n._competencias.includes('humanidades');
+
+          // Filtrar según la mención elegida
+          if (mencion === 'economia' && (hasFisicaAvanzada || hasSostenibilidad)) nodosAEliminar.push(n.id);
+          if (mencion === 'fisica' && (hasGestion || hasSostenibilidad)) nodosAEliminar.push(n.id);
+          if (mencion === 'sostenibilidad' && (hasFisicaAvanzada || hasGestion)) nodosAEliminar.push(n.id);
+        }
+      });
+
+      // Reconectar dependencias (Bypass) antes de eliminar para no romper el DAG
+      nodosAEliminar.forEach(idEliminar => {
+        let reqs = dsEdges.get().filter(e => e.to === idEliminar).map(e => e.from);
+        let succs = dsEdges.get().filter(e => e.from === idEliminar).map(e => e.to);
+        
+        reqs.forEach(r => {
+          succs.forEach(s => {
+            if (r !== s) dsEdges.add({ id: `${r}-${s}-bypass`, from: r, to: s, arrows: 'to', color: { color: '#aaa', highlight: '#333' } });
+          });
+        });
+
+        // Eliminar nodo y sus aristas
+        let edgesToRemove = dsEdges.get().filter(e => e.from === idEliminar || e.to === idEliminar).map(e => e.id);
+        dsEdges.remove(edgesToRemove);
+        dsNodes.remove(idEliminar);
+      });
+      
+      // Actualizamos allNodes después de la purga
+      allNodes = dsNodes.get();
+    }
+
+    // 1. Configuración de Jaccard y Carga Dinámica
+    const jaccardSetting = document.getElementById('selectJaccard').value;
+    let threshold = 2.0; // Desactivado por defecto
+    let maxLoad = 26; // Carga muy alta si no fusionamos (para que el DAG no colapse)
+
+    if (jaccardSetting === 'full') {
+       threshold = 0.75;
+       maxLoad = 12; // Muy comprimido, ideal para fusión
+    } else if (jaccardSetting === 'light') {
+       threshold = 0.90;
+       maxLoad = 18; // Punto medio
+    }
+
+    // 1.5 Fusión por Jaccard
     let fused = new Set();
-    for (let i = 0; i < allNodes.length; i++) {
-      for (let j = i + 1; j < allNodes.length; j++) {
-        let n1 = allNodes[i];
-        let n2 = allNodes[j];
-        if (fused.has(n1.id) || fused.has(n2.id)) continue;
-        if (n1._esProtegido || n2._esProtegido) continue; // Regla Crítica: Intocables
-        if (n1._nivel_profundidad !== n2._nivel_profundidad) continue; // Regla Crítica: Mismo nivel_profundidad EXACTO
+    if (jaccardSetting !== 'none') {
+      for (let i = 0; i < allNodes.length; i++) {
+        for (let j = i + 1; j < allNodes.length; j++) {
+          let n1 = allNodes[i];
+          let n2 = allNodes[j];
+          if (fused.has(n1.id) || fused.has(n2.id)) continue;
+          if (n1._esProtegido || n2._esProtegido) continue; // Regla Crítica: Intocables
+          if (n1._nivel_profundidad !== n2._nivel_profundidad) continue; // Regla Crítica: Mismo nivel_profundidad EXACTO
 
-        // Similitud Jaccard
-        let inter = n1._competencias.filter(c => n2._competencias.includes(c));
-        let union = new Set([...n1._competencias, ...n2._competencias]);
-        let jaccard = inter.length / union.size;
+          // Similitud Jaccard
+          let inter = n1._competencias.filter(c => n2._competencias.includes(c));
+          let union = new Set([...n1._competencias, ...n2._competencias]);
+          let jaccard = inter.length / union.size;
 
-        if (jaccard >= 0.75) {
+          if (jaccard >= threshold) {
           // Límite de Fusión: no absorber más de 3 ramos
           if (!n1._fusionCount) n1._fusionCount = 1;
           if (!n2._fusionCount) n2._fusionCount = 1;
@@ -469,6 +527,7 @@ document.querySelectorAll('td.asignatura__normal').forEach(celda => {
         }
       }
     }
+    } // Fin condicional Jaccard
 
     // 2. Ordenamiento Topológico y Asignación de Semestres (CRÍTICO)
     allNodes = dsNodes.get();
@@ -536,11 +595,11 @@ document.querySelectorAll('td.asignatura__normal').forEach(celda => {
         minS = 2;
       }
 
-      // Regla 3: Balance de Carga (Máximo 12 puntos de dificultad por semestre), techo S=7
+      // Regla 3: Balance de Carga Dinámico, techo S=7
       let assignedS = minS;
       while (assignedS < 7) {
         let currentLoad = semesterLoads[assignedS] || 0;
-        if (currentLoad + node._dificultad <= 12 || currentLoad === 0) {
+        if (currentLoad + node._dificultad <= maxLoad || currentLoad === 0) {
           break;
         }
         assignedS++;
