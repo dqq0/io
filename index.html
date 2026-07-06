@@ -1,0 +1,3426 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Malla Curricular - Tabla Original</title>
+  <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+  <style>
+    /* Estilos básicos de respaldo para que la tabla se pueda leer, 
+           ya que no tenemos el CSS original de tu universidad */
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      font-size: 12px;
+    }
+
+    table {
+      border-collapse: collapse;
+      margin-bottom: 20px;
+    }
+
+    th,
+    td {
+      border: 1px solid #ddd;
+      padding: 8px;
+    }
+
+    .asignatura__APROBADO {
+      background-color: #d4edda;
+    }
+
+    /* Verde para aprobado */
+    .asignatura__REPROBADO {
+      background-color: #f8d7da;
+    }
+
+    /* Rojo para reprobado */
+    .asignatura__INSCRITO {
+      background-color: #cce5ff;
+    }
+
+    /* Azul para inscrito */
+    .asignatura__sinTomar {
+      background-color: #f8f9fa;
+      color: #6c757d;
+    }
+
+    /* Gris para no cursada */
+    .asignatura__vacia {
+      border: none;
+      background: transparent;
+    }
+
+    /* Celdas vacías */
+
+    .tablainlineIZQ,
+    .tablainlineDER {
+      display: inline-table;
+      margin-right: 20px;
+    }
+
+    td.asignatura__normal table tr:nth-child(4),
+    td.asignatura__normal table tr:nth-child(5) {
+      display: none !important;
+    }
+
+    .nodesbordarSimple {
+      font-size: 10px;
+      font-weight: bold;
+    }
+
+    /* Transición suave para el hover */
+    td.asignatura__normal {
+      transition: background-color 0.2s, transform 0.2s;
+      cursor: pointer;
+    }
+
+    /* Colores para el efecto */
+    td.hover-activo {
+      z-index: 5;
+      position: relative;
+    }
+
+    td.hover-activo table {
+      transform: scale(1.05);
+      box-shadow: 0 0 15px rgba(0, 123, 255, 0.5);
+      background-color: #e6f2ff !important; /* Fondo azul claro */
+      border: 2px solid #007bff !important; /* Borde azul fuerte */
+      border-collapse: separate; /* Prevenir corte de bordes */
+      transition: transform 0.2s, background-color 0.2s;
+    }
+
+    td.prereq-rojo table {
+      background-color: #ffcccc !important;
+      /* Rojo claro */
+      border: 2px solid red !important;
+      border-collapse: separate;
+    }
+
+    td.abre-verde table {
+      background-color: #ccffcc !important;
+      /* Verde claro */
+      border: 2px solid green !important;
+      border-collapse: separate;
+    }
+
+    .asignatura__APROBADO,
+    .asignatura__REPROBADO,
+    .asignatura__INSCRITO,
+    .asignatura__sinTomar {
+      background-color: #ffffff !important;
+      color: #333333 !important;
+    }
+
+    /* Ocultar celdas vacías sin desarmar las columnas */
+    td.asignatura__vacia {
+      visibility: hidden !important;
+      border: none !important;
+    }
+
+    /* Por si acaso, también ocultamos cualquier tablita interna de las celdas vacías */
+    td.asignatura__vacia table {
+      display: none !important;
+    }
+
+    /* Alinear las tarjetas hacia la parte superior */
+    td.asignatura__normal {
+      vertical-align: top;
+      transition: background-color 0.2s, transform 0.2s;
+      /* Mantiene la animación del hover */
+      cursor: pointer;
+    }
+
+    /* Estilos para modo CPM */
+    td.cpm-critico table {
+      border: 4px solid #ff0000 !important;
+      box-shadow: 0 0 15px 2px rgba(255, 0, 0, 0.8) !important;
+      border-radius: 4px;
+      position: relative;
+      z-index: 10;
+      background-color: #ffe6e6 !important;
+    }
+
+    td.cpm-flexible {
+      opacity: 0.3 !important;
+      filter: grayscale(100%) !important;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="controls" style="margin: 20px; text-align: center;">
+    <button id="btnToggleView"
+      style="padding: 10px 20px; font-size: 16px; cursor: pointer; background-color: #007bff; color: white; border: none; border-radius: 5px; font-weight: bold; transition: background-color 0.3s;">
+      Ver Grafo Interactivo de Nodos
+    </button>
+    <button id="btnToggleCPM"
+      style="padding: 10px 20px; font-size: 16px; cursor: pointer; background-color: #dc3545; color: white; border: none; border-radius: 5px; font-weight: bold; transition: background-color 0.3s; margin-left: 10px;">
+      Ver Cuellos de Botella (CPM)
+    </button>
+  </div>
+  <div id="network-ui"
+    style="display: none; width: 100vw; height: 100vh; position: fixed; top: 0; left: 0; z-index: 1000; background-color: #f0f2f5;">
+    <div style="position: absolute; top: 20px; left: 20px; z-index: 1001; display: flex; gap: 15px;">
+      <button id="btnCloseNetwork"
+        style="padding: 12px 24px; font-size: 16px; cursor: pointer; background-color: #343a40; color: white; border: none; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); font-weight: bold; transition: transform 0.2s;">
+        &larr; Volver a la Malla Normal
+      </button>
+      <button id="btnGraphCPM"
+        style="padding: 12px 24px; font-size: 16px; cursor: pointer; background-color: #dc3545; color: white; border: none; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); font-weight: bold; transition: transform 0.2s;">
+        Ver Cuellos de Botella (CPM)
+      </button>
+      <button id="btnGraphOpt"
+        style="padding: 12px 24px; font-size: 16px; cursor: pointer; background-color: #28a745; color: white; border: none; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); font-weight: bold; transition: transform 0.2s;">
+        Optimizar Malla (I.O.)
+      </button>
+    </div>
+    <!-- Contenedor dedicado exclusivamente al render de Vis.js para que no borre los botones -->
+    <div id="network-container" style="width: 100%; height: 100%;"></div>
+  </div>
+  <div id="cpm-container" style="display: none; width: 100%;" class="h-100 min-h-100 max-h-400 ng-star-inserted"></div>
+
+  <div id="malla-container" class="h-100 min-h-100 max-h-400 ng-star-inserted">
+    <mallacurricular>
+      <div class="contenedorMalla"><br>
+
+        <table id="mallaDescripSelec" class="tablaMalla tablainlineDER">
+          <tbody>
+            <tr>
+              <td class="asignatura__cabSemestral celdaDescMalla" align="center"></td>
+              <td class="descripcion"> Prerrequisto Semestre</td>
+              <td class="asignatura__necesita celdaDescMalla" align="center"></td>
+              <td class="descripcion"> Prerrequisito</td>
+              <td class="asignatura__seleccionado celdaDescMalla" align="center"></td>
+              <td class="descripcion"> Seleccionada</td>
+              <td class="asignatura__abre celdaDescMalla" align="center"></td>
+              <td class="descripcion"> Tributa</td>
+            </tr>
+          </tbody>
+        </table><br>
+      </div>
+      <div class="contenedorMalla">
+        <table class="tablaMalla">
+          <thead>
+            <tr>
+              <th class="ng-star-inserted" style="">I</th><!----><!---->
+              <th class="ng-star-inserted" style="">II</th><!----><!---->
+              <th class="ng-star-inserted" style="">III</th><!----><!---->
+              <th class="ng-star-inserted" style="">IV</th><!----><!---->
+              <th class="ng-star-inserted" style="">V</th><!----><!---->
+              <th class="ng-star-inserted" style="">VI</th><!----><!---->
+              <th class="ng-star-inserted" style="">VII</th><!----><!---->
+              <th class="ng-star-inserted" style="">VIII</th><!----><!---->
+              <th class="ng-star-inserted" style="">IX</th><!----><!---->
+              <th class="ng-star-inserted" style="">X</th>
+              <!----><!----><!----><!----><!----><!----><!----><!----><!----><!----><!----><!----><!----><!----><!----><!----><!----><!----><!----><!----><!----><!----><!---->
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="ng-star-inserted" style="">
+              <td class="asignatura__normal ng-star-inserted asignatura__APROBADO" align="center" title="MA067 INTRODUCCION AL CALCULO
+Caracter : OBLIGATORIO(1)
+Créditos  : 7
+HORAS
+Catedra : 6 Taller : 2 Laboratorio : 0
+
+ESTADO APROBADO  
+
+Semestre 1 Año 2023 
+Nota   5,5 Oportunidad 1" colspan="1" asicodigo="MA067" id="1" semestre="1" requisitos="6-1-1-A"
+                clasedefecto="asignatura__APROBADO">
+                <table>
+                  <tr>
+                    <td>1</td>
+                    <td colspan="2">MA067</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarSimple ng-star-inserted">INTRODUCCION AL CALCULO</td><!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 6,2,0) (7)</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 2023 / 1 )</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 5,5 / 1 )</td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!---->
+              <td class="asignatura__normal ng-star-inserted asignatura__APROBADO" align="center" title="MA601 CALCULO I
+Caracter : OBLIGATORIO(1)
+Créditos  : 8
+HORAS
+Catedra : 6 Taller : 2 Laboratorio : 0
+
+PRERREQUISITOS/CORREQUISITOS
+
+ - 1 PRErrequisito INDISPENSABLE
+
+ESTADO APROBADO  
+
+Semestre 2 Año 2023 
+Nota   4,4 Oportunidad 1" colspan="1" asicodigo="MA601" id="6" semestre="2" requisitos="1-1-1-P,11-1-1-A,13-1-1-A"
+                clasedefecto="asignatura__APROBADO">
+                <table>
+                  <tr>
+                    <td>6</td>
+                    <td colspan="2">MA601</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarSimple ng-star-inserted">CALCULO I</td><!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 6,2,0) (8)</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 2023 / 2 )</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 4,4 / 1 )</td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!---->
+              <td class="asignatura__normal ng-star-inserted asignatura__APROBADO" align="center" title="MA602 CALCULO II
+Caracter : OBLIGATORIO(1)
+Créditos  : 8
+HORAS
+Catedra : 6 Taller : 2 Laboratorio : 0
+
+PRERREQUISITOS/CORREQUISITOS
+
+ - 6 PRErrequisito INDISPENSABLE
+
+ESTADO APROBADO  
+
+Semestre 1 Año 2024 
+Nota   4,4 Oportunidad 1" colspan="1" asicodigo="MA602" id="11" semestre="3" requisitos="6-1-1-P,16-1-1-A,17-1-1-A"
+                clasedefecto="asignatura__APROBADO">
+                <table>
+                  <tr>
+                    <td>11</td>
+                    <td colspan="2">MA602</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarSimple ng-star-inserted">CALCULO II</td><!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 6,2,0) (8)</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 2024 / 1 )</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 4,4 / 1 )</td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!---->
+              <td class="asignatura__normal asignatura__APROBADO ng-star-inserted" align="center" title="MA603 CALCULO III
+Caracter : OBLIGATORIO(1)
+Créditos  : 4
+HORAS
+Catedra : 4 Taller : 2 Laboratorio : 0
+
+PRERREQUISITOS/CORREQUISITOS
+
+ - 11 PRErrequisito INDISPENSABLE
+
+ESTADO APROBADO  
+
+Semestre 2 Año 2024 
+Nota   4,3 Oportunidad 1" colspan="1" asicodigo="MA603" id="16" semestre="4" requisitos="11-1-1-P,22-1-1-A,24-1-1-A"
+                clasedefecto="asignatura__APROBADO">
+                <table>
+                  <tr>
+                    <td>16</td>
+                    <td colspan="2">MA603</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarSimple ng-star-inserted">CALCULO III</td><!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 4,2,0) (4)</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 2024 / 2 )</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 4,3 / 1 )</td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!---->
+              <td class="asignatura__normal asignatura__APROBADO ng-star-inserted" align="center" title="MA424 ESTADISTICA Y PROBABILIDAD
+Caracter : OBLIGATORIO(1)
+Créditos  : 4
+HORAS
+Catedra : 3 Taller : 1 Laboratorio : 0
+
+PRERREQUISITOS/CORREQUISITOS
+
+ - 16 PRErrequisito INDISPENSABLE
+ - 17 PRErrequisito INDISPENSABLE
+
+ESTADO APROBADO  
+
+Semestre 1 Año 2025 
+Nota   4,4 Oportunidad 1" colspan="1" asicodigo="MA424" id="22" semestre="5"
+                requisitos="16-1-1-P,17-1-1-P,28-1-1-A,39-1-1-A" clasedefecto="asignatura__APROBADO">
+                <table>
+                  <tr>
+                    <td>22</td>
+                    <td colspan="2">MA424</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarSimple ng-star-inserted">ESTADISTICA Y PROBABILIDAD</td><!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 3,1,0) (4)</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 2025 / 1 )</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 4,4 / 1 )</td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!---->
+              <td class="asignatura__normal ng-star-inserted asignatura__APROBADO" align="center" title="IT012 ESTADISTICA COMPUTACIONAL
+Caracter : OBLIGATORIO(1)
+Créditos  : 5
+HORAS
+Catedra : 2 Taller : 0 Laboratorio : 2
+
+PRERREQUISITOS/CORREQUISITOS
+
+ - 22 PRErrequisito INDISPENSABLE
+
+ESTADO APROBADO  
+
+Semestre 2 Año 2025 
+Nota   5,3 Oportunidad 1" colspan="1" asicodigo="IT012" id="28" semestre="6" requisitos="22-1-1-P,34-1-1-A"
+                clasedefecto="asignatura__APROBADO">
+                <table>
+                  <tr>
+                    <td>28</td>
+                    <td colspan="2">IT012</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarSimple ng-star-inserted">ESTADISTICA COMPUTACIONAL</td><!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 2,0,2) (5)</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 2025 / 2 )</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 5,3 / 1 )</td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!---->
+              <td class="asignatura__normal ng-star-inserted asignatura__INSCRITO" align="center" title="IT015 INTELIGENCIA ARTIFICIAL
+Caracter : OBLIGATORIO(1)
+Créditos  : 5
+HORAS
+Catedra : 2 Taller : 0 Laboratorio : 2
+
+PRERREQUISITOS/CORREQUISITOS
+
+ - 28 PRErrequisito INDISPENSABLE" colspan="1" asicodigo="IT015" id="34" semestre="7" requisitos="28-1-1-P,41-1-1-A"
+                clasedefecto="asignatura__INSCRITO">
+                <table>
+                  <tr>
+                    <td>34</td>
+                    <td colspan="2">IT015</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarSimple ng-star-inserted">INTELIGENCIA ARTIFICIAL</td><!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 2,0,2) (5)</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!---->
+              <td class="asignatura__normal ng-star-inserted asignatura__sinTomar" align="center" title="IT022 MINERIA DE DATOS
+Caracter : OBLIGATORIO(1)
+Créditos  : 5
+HORAS
+Catedra : 2 Taller : 0 Laboratorio : 2
+
+PRERREQUISITOS/CORREQUISITOS
+
+ - 34 PRErrequisito INDISPENSABLE" colspan="1" asicodigo="IT022" id="41" semestre="8" requisitos="34-1-1-P,47-1-1-A"
+                clasedefecto="asignatura__sinTomar">
+                <table>
+                  <tr>
+                    <td>41</td>
+                    <td colspan="2">IT022</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarSimple ng-star-inserted">MINERIA DE DATOS</td><!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 2,0,2) (5)</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!---->
+              <td class="asignatura__normal ng-star-inserted asignatura__sinTomar" align="center" title="IT027 INTELIGENCIA DE NEGOCIOS
+Caracter : OBLIGATORIO(1)
+Créditos  : 6
+HORAS
+Catedra : 4 Taller : 0 Laboratorio : 2
+
+PRERREQUISITOS/CORREQUISITOS
+
+ - 41 PRErrequisito INDISPENSABLE" colspan="1" asicodigo="IT027" id="47" semestre="9" requisitos="41-1-1-P"
+                clasedefecto="asignatura__sinTomar">
+                <table>
+                  <tr>
+                    <td>47</td>
+                    <td colspan="2">IT027</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarSimple ng-star-inserted">INTELIGENCIA DE NEGOCIOS</td><!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 4,0,2) (6)</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!---->
+              <td class="asignatura__normal asignatura__sinTomar ng-star-inserted" align="center" title="IT032 ACTIVIDAD DE TITULACION
+Caracter : TITULACION(5)
+Créditos  : 28
+HORAS
+Catedra : 0 Taller : 18 Laboratorio : 0
+
+PRERREQUISITOS/CORREQUISITO
+
+- Hasta 9 semestre aprobado
+" colspan="1" asicodigo="IT032" id="53" semestre="10" requisitosemestral="9-2--" clasedefecto="asignatura__sinTomar">
+                <table>
+                  <tr>
+                    <td>53</td>
+                    <td colspan="2">IT032</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarSimple ng-star-inserted">ACTIVIDAD DE TITULACION</td><!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 0,18,0) (28)</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!----><!---->
+            </tr>
+            <tr class="ng-star-inserted" style="">
+              <td class="asignatura__normal ng-star-inserted asignatura__APROBADO" align="center" title="MA069 INTRODUCCION AL ALGEBRA
+Caracter : OBLIGATORIO(1)
+Créditos  : 7
+HORAS
+Catedra : 6 Taller : 2 Laboratorio : 0
+
+ESTADO APROBADO  
+
+Semestre 1 Año 2023 
+Nota   5,2 Oportunidad 1" colspan="1" asicodigo="MA069" id="2" semestre="1" requisitos="7-1-1-A"
+                clasedefecto="asignatura__APROBADO">
+                <table>
+                  <tr>
+                    <td>2</td>
+                    <td colspan="2">MA069</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarSimple ng-star-inserted">INTRODUCCION AL ALGEBRA</td><!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 6,2,0) (7)</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 2023 / 1 )</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 5,2 / 1 )</td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!---->
+              <td class="asignatura__normal ng-star-inserted asignatura__APROBADO" align="center" title="MA611 ALGEBRA I
+Caracter : OBLIGATORIO(1)
+Créditos  : 8
+HORAS
+Catedra : 6 Taller : 2 Laboratorio : 0
+
+PRERREQUISITOS/CORREQUISITOS
+
+ - 2 PRErrequisito INDISPENSABLE
+
+ESTADO APROBADO  
+
+Semestre 2 Año 2023 
+Nota   4,3 Oportunidad 1" colspan="1" asicodigo="MA611" id="7" semestre="2" requisitos="2-1-1-P,12-1-1-A,13-1-1-A"
+                clasedefecto="asignatura__APROBADO">
+                <table>
+                  <tr>
+                    <td>7</td>
+                    <td colspan="2">MA611</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarSimple ng-star-inserted">ALGEBRA I</td><!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 6,2,0) (8)</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 2023 / 2 )</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 4,3 / 1 )</td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!---->
+              <td class="asignatura__normal ng-star-inserted asignatura__APROBADO" align="center" title="MA612 ALGEBRA II
+Caracter : OBLIGATORIO(1)
+Créditos  : 8
+HORAS
+Catedra : 6 Taller : 2 Laboratorio : 0
+
+PRERREQUISITOS/CORREQUISITOS
+
+ - 7 PRErrequisito INDISPENSABLE
+
+ESTADO APROBADO  
+
+Semestre 1 Año 2024 
+Nota   5,4 Oportunidad 1" colspan="1" asicodigo="MA612" id="12" semestre="3" requisitos="7-1-1-P,17-1-1-A"
+                clasedefecto="asignatura__APROBADO">
+                <table>
+                  <tr>
+                    <td>12</td>
+                    <td colspan="2">MA612</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarSimple ng-star-inserted">ALGEBRA II</td><!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 6,2,0) (8)</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 2024 / 1 )</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 5,4 / 1 )</td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!---->
+              <td class="asignatura__normal asignatura__APROBADO ng-star-inserted" align="center" title="MA188 ECUACIONES DIFERENCIALES
+Caracter : OBLIGATORIO(1)
+Créditos  : 4
+HORAS
+Catedra : 3 Taller : 1 Laboratorio : 0
+
+PRERREQUISITOS/CORREQUISITOS
+
+ - 11 PRErrequisito INDISPENSABLE
+ - 12 PRErrequisito INDISPENSABLE
+
+ESTADO APROBADO  
+
+Semestre 2 Año 2024 
+Nota   4,8 Oportunidad 1" colspan="1" asicodigo="MA188" id="17" semestre="4"
+                requisitos="11-1-1-P,12-1-1-P,22-1-1-A,24-1-1-A" clasedefecto="asignatura__APROBADO">
+                <table>
+                  <tr>
+                    <td>17</td>
+                    <td colspan="2">MA188</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarSimple ng-star-inserted">ECUACIONES DIFERENCIALES</td><!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 3,1,0) (4)</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 2024 / 2 )</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 4,8 / 1 )</td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!---->
+              <td class="asignatura__normal asignatura__APROBADO ng-star-inserted" align="center" title="IT009 MEDIO AMBIENTE Y SOSTENIBILIDAD
+Caracter : OBLIGATORIO(1)
+Créditos  : 4
+HORAS
+Catedra : 2 Taller : 2 Laboratorio : 0
+
+PRERREQUISITOS/CORREQUISITOS
+
+ - 10 PRErrequisito INDISPENSABLE
+
+ESTADO APROBADO  
+
+Semestre 1 Año 2025 
+Nota   4,6 Oportunidad 1" colspan="1" asicodigo="IT009" id="23" semestre="5" requisitos="10-1-1-P,29-1-1-A"
+                clasedefecto="asignatura__APROBADO">
+                <table>
+                  <tr>
+                    <td>23</td>
+                    <td colspan="2">IT009</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarSimple ng-star-inserted">MEDIO AMBIENTE Y SOSTENIBILIDAD</td><!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 2,2,0) (4)</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 2025 / 1 )</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 4,6 / 1 )</td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!---->
+              <td class="asignatura__normal ng-star-inserted asignatura__APROBADO" align="center" title="IN221 GESTION DE EMPRESAS
+Caracter : OBLIGATORIO(1)
+Créditos  : 6
+HORAS
+Catedra : 4 Taller : 2 Laboratorio : 0
+
+PRERREQUISITOS/CORREQUISITOS
+
+ - 23 PRErrequisito INDISPENSABLE
+
+ESTADO APROBADO  
+
+Semestre 2 Año 2025 
+Nota   5,6 Oportunidad 1" colspan="1" asicodigo="IN221" id="29" semestre="6"
+                requisitos="23-1-1-P,35-1-1-A,36-1-1-A,43-1-1-A" clasedefecto="asignatura__APROBADO">
+                <table>
+                  <tr>
+                    <td>29</td>
+                    <td colspan="2">IN221</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarSimple ng-star-inserted">GESTION DE EMPRESAS</td><!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 4,2,0) (6)</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 2025 / 2 )</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 5,6 / 1 )</td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!---->
+              <td class="asignatura__normal ng-star-inserted asignatura__INSCRITO" align="center" title="IT016 INTRODUCCION A LA ECONOMIA
+Caracter : OBLIGATORIO(1)
+Créditos  : 4
+HORAS
+Catedra : 4 Taller : 0 Laboratorio : 0
+
+PRERREQUISITOS/CORREQUISITOS
+
+ - 29 PRErrequisito INDISPENSABLE" colspan="1" asicodigo="IT016" id="35" semestre="7" requisitos="29-1-1-P,42-1-1-A"
+                clasedefecto="asignatura__INSCRITO">
+                <table>
+                  <tr>
+                    <td>35</td>
+                    <td colspan="2">IT016</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarSimple ng-star-inserted">INTRODUCCION A LA ECONOMIA</td><!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 4,0,0) (4)</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!---->
+              <td class="asignatura__normal ng-star-inserted asignatura__sinTomar" align="center" title="IT023 PREPARACION Y EVALUACION DE PROYECTOS
+Caracter : OBLIGATORIO(1)
+Créditos  : 5
+HORAS
+Catedra : 3 Taller : 1 Laboratorio : 0
+
+PRERREQUISITOS/CORREQUISITOS
+
+ - 35 PRErrequisito INDISPENSABLE" colspan="1" asicodigo="IT023" id="42" semestre="8" requisitos="35-1-1-P,48-1-1-A"
+                clasedefecto="asignatura__sinTomar">
+                <table>
+                  <tr>
+                    <td>42</td>
+                    <td colspan="2">IT023</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarSimple ng-star-inserted">PREPARACION Y EVALUACION DE PROYECTOS</td>
+                    <!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 3,1,0) (5)</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!---->
+              <td class="asignatura__normal ng-star-inserted asignatura__sinTomar" align="center" title="IT028 GESTION DE SOLUCIONES TECNOLOGICAS
+Caracter : OBLIGATORIO(1)
+Créditos  : 4
+HORAS
+Catedra : 2 Taller : 2 Laboratorio : 0
+
+PRERREQUISITOS/CORREQUISITOS
+
+ - 42 PRErrequisito INDISPENSABLE" colspan="1" asicodigo="IT028" id="48" semestre="9" requisitos="42-1-1-P"
+                clasedefecto="asignatura__sinTomar">
+                <table>
+                  <tr>
+                    <td>48</td>
+                    <td colspan="2">IT028</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarSimple ng-star-inserted">GESTION DE SOLUCIONES TECNOLOGICAS</td><!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 2,2,0) (4)</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!---->
+              <td class="asignatura__normal asignatura__vacia ng-star-inserted" align="center" title="" colspan="1"
+                asicodigo="despues" id="0" semestre="0" requisitos="" excepciones="" clasedefecto="asignatura__vacia">
+                <table>
+                  <tr>
+                    <td>0</td>
+                    <td colspan="2">despues</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarDoble ng-star-inserted"></td><!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!----><!---->
+            </tr>
+            <tr class="ng-star-inserted" style="">
+              <td class="asignatura__normal asignatura__APROBADO ng-star-inserted" align="center" title="FI035 INTRODUCCION A LA FISICA
+Caracter : OBLIGATORIO(1)
+Créditos  : 4
+HORAS
+Catedra : 4 Taller : 0 Laboratorio : 2
+
+ESTADO APROBADO  
+
+Semestre 1 Año 2023 
+Nota   4,8 Oportunidad 1" colspan="1" asicodigo="FI035" id="3" semestre="1" requisitos="8-1-1-A,13-1-1-A"
+                clasedefecto="asignatura__APROBADO">
+                <table>
+                  <tr>
+                    <td>3</td>
+                    <td colspan="2">FI035</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarSimple ng-star-inserted">INTRODUCCION A LA FISICA</td><!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 4,0,2) (4)</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 2023 / 1 )</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 4,8 / 1 )</td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!---->
+              <td class="asignatura__normal asignatura__APROBADO ng-star-inserted" align="center" title="QU601 QUIMICA
+Caracter : OBLIGATORIO(1)
+Créditos  : 4
+HORAS
+Catedra : 3 Taller : 0 Laboratorio : 1
+
+PRERREQUISITOS/CORREQUISITOS
+
+ - 3 PRErrequisito INDISPENSABLE
+
+ESTADO APROBADO  
+
+Semestre 2 Año 2023 
+Nota   5,4 Oportunidad 1" colspan="1" asicodigo="QU601" id="8" semestre="2" requisitos="3-1-1-P,18-1-1-A"
+                clasedefecto="asignatura__APROBADO">
+                <table>
+                  <tr>
+                    <td>8</td>
+                    <td colspan="2">QU601</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarSimple ng-star-inserted">QUIMICA</td><!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 3,0,1) (4)</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 2023 / 2 )</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 5,4 / 1 )</td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!---->
+              <td class="asignatura__normal ng-star-inserted asignatura__APROBADO" align="center" title="FI601 MECANICA CLASICA
+Caracter : OBLIGATORIO(1)
+Créditos  : 5
+HORAS
+Catedra : 4 Taller : 0 Laboratorio : 2
+
+PRERREQUISITOS/CORREQUISITOS
+
+ - 3 PRErrequisito INDISPENSABLE
+ - 6 PRErrequisito INDISPENSABLE
+ - 7 PRErrequisito INDISPENSABLE
+
+ESTADO APROBADO  
+
+Semestre 1 Año 2024 
+Nota   4,8 Oportunidad 1" colspan="1" asicodigo="FI601" id="13" semestre="3"
+                requisitos="3-1-1-P,6-1-1-P,7-1-1-P,18-1-1-A" clasedefecto="asignatura__APROBADO">
+                <table>
+                  <tr>
+                    <td>13</td>
+                    <td colspan="2">FI601</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarSimple ng-star-inserted">MECANICA CLASICA</td><!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 4,0,2) (5)</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 2024 / 1 )</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 4,8 / 1 )</td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!---->
+              <td class="asignatura__normal asignatura__APROBADO ng-star-inserted" align="center" title="IT006 TERMODINAMICA
+Caracter : OBLIGATORIO(1)
+Créditos  : 6
+HORAS
+Catedra : 4 Taller : 2 Laboratorio : 0
+
+PRERREQUISITOS/CORREQUISITOS
+
+ - 8 PRErrequisito INDISPENSABLE
+ - 13 PRErrequisito INDISPENSABLE
+
+ESTADO APROBADO  
+
+Semestre 2 Año 2024 
+Nota   4,4 Oportunidad 1" colspan="1" asicodigo="IT006" id="18" semestre="4" requisitos="8-1-1-P,13-1-1-P,24-1-1-A"
+                clasedefecto="asignatura__APROBADO">
+                <table>
+                  <tr>
+                    <td>18</td>
+                    <td colspan="2">IT006</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarSimple ng-star-inserted">TERMODINAMICA</td><!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 4,2,0) (6)</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 2024 / 2 )</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 4,4 / 1 )</td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!---->
+              <td class="asignatura__normal asignatura__APROBADO ng-star-inserted" align="center" title="FI604 ELECTROMAGNETISMO
+Caracter : OBLIGATORIO(1)
+Créditos  : 5
+HORAS
+Catedra : 4 Taller : 0 Laboratorio : 2
+
+PRERREQUISITOS/CORREQUISITOS
+
+ - 16 PRErrequisito INDISPENSABLE
+ - 17 PRErrequisito INDISPENSABLE
+ - 18 PRErrequisito INDISPENSABLE
+
+ESTADO APROBADO  
+
+Semestre 1 Año 2025 
+Nota   4,1 Oportunidad 1" colspan="1" asicodigo="FI604" id="24" semestre="5"
+                requisitos="16-1-1-P,17-1-1-P,18-1-1-P,30-1-1-A" clasedefecto="asignatura__APROBADO">
+                <table>
+                  <tr>
+                    <td>24</td>
+                    <td colspan="2">FI604</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarSimple ng-star-inserted">ELECTROMAGNETISMO</td><!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 4,0,2) (5)</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 2025 / 1 )</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 4,1 / 1 )</td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!---->
+              <td class="asignatura__normal asignatura__APROBADO ng-star-inserted" align="center" title="FI040 FISICA CONTEMPORANEA
+Caracter : OBLIGATORIO(1)
+Créditos  : 5
+HORAS
+Catedra : 4 Taller : 0 Laboratorio : 0
+
+PRERREQUISITOS/CORREQUISITOS
+
+ - 24 PRErrequisito INDISPENSABLE
+
+ESTADO APROBADO  
+
+Semestre 2 Año 2025 
+Nota   6,2 Oportunidad 1" colspan="1" asicodigo="FI040" id="30" semestre="6" requisitos="24-1-1-P"
+                clasedefecto="asignatura__APROBADO">
+                <table>
+                  <tr>
+                    <td>30</td>
+                    <td colspan="2">FI040</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarSimple ng-star-inserted">FISICA CONTEMPORANEA</td><!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 4,0,0) (5)</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 2025 / 2 )</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 6,2 / 1 )</td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!---->
+              <td class="asignatura__normal asignatura__INSCRITO ng-star-inserted" align="center" title="IT017 ETICA Y RESPONSABILIDAD SOCIAL EN LA EMPRESA
+Caracter : OBLIGATORIO(1)
+Créditos  : 4
+HORAS
+Catedra : 2 Taller : 2 Laboratorio : 0
+
+PRERREQUISITOS/CORREQUISITOS
+
+ - 29 PRErrequisito INDISPENSABLE" colspan="1" asicodigo="IT017" id="36" semestre="7" requisitos="29-1-1-P,44-1-1-A"
+                clasedefecto="asignatura__INSCRITO">
+                <table>
+                  <tr>
+                    <td>36</td>
+                    <td colspan="2">IT017</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarSimple ng-star-inserted">ETICA Y RESPONSABILIDAD SOCIAL EN LA EMPRESA</td>
+                    <!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 2,2,0) (4)</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!---->
+              <td class="asignatura__normal ng-star-inserted asignatura__sinTomar" align="center" title="IT024 GESTION DE PROCESOS EN LA EMPRESA
+Caracter : OBLIGATORIO(1)
+Créditos  : 5
+HORAS
+Catedra : 2 Taller : 2 Laboratorio : 0
+
+PRERREQUISITOS/CORREQUISITOS
+
+ - 29 PRErrequisito INDISPENSABLE" colspan="1" asicodigo="IT024" id="43" semestre="8" requisitos="29-1-1-P"
+                clasedefecto="asignatura__sinTomar">
+                <table>
+                  <tr>
+                    <td>43</td>
+                    <td colspan="2">IT024</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarSimple ng-star-inserted">GESTION DE PROCESOS EN LA EMPRESA</td><!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 2,2,0) (5)</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!---->
+              <td class="asignatura__normal asignatura__sinTomar ng-star-inserted" align="center" title="IT029 FORMULACION DE PROYECTO DE TITULACION
+Caracter : OBLIGATORIO(1)
+Créditos  : 12
+HORAS
+Catedra : 0 Taller : 8 Laboratorio : 0
+
+PRERREQUISITOS/CORREQUISITO
+
+- Hasta 8 semestre aprobado
+" colspan="1" asicodigo="IT029" id="49" semestre="9" requisitosemestral="8-2--" clasedefecto="asignatura__sinTomar">
+                <table>
+                  <tr>
+                    <td>49</td>
+                    <td colspan="2">IT029</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarSimple ng-star-inserted">FORMULACION DE PROYECTO DE TITULACION</td>
+                    <!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 0,8,0) (12)</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!---->
+              <td class="asignatura__normal asignatura__vacia ng-star-inserted" align="center" title="" colspan="1"
+                asicodigo="despues" id="0" semestre="0" requisitos="" excepciones="" clasedefecto="asignatura__vacia">
+                <table>
+                  <tr>
+                    <td>0</td>
+                    <td colspan="2">despues</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarDoble ng-star-inserted"></td><!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!----><!---->
+            </tr>
+            <tr class="ng-star-inserted" style="">
+              <td class="asignatura__normal asignatura__APROBADO ng-star-inserted" align="center" title="IT001 PROGRAMACION COMPUTACIONAL
+Caracter : OBLIGATORIO(1)
+Créditos  : 7
+HORAS
+Catedra : 2 Taller : 0 Laboratorio : 4
+
+ESTADO APROBADO  
+
+Semestre 1 Año 2023 
+Nota   4,6 Oportunidad 1" colspan="1" asicodigo="IT001" id="4" semestre="1" requisitos="9-1-1-A"
+                clasedefecto="asignatura__APROBADO">
+                <table>
+                  <tr>
+                    <td>4</td>
+                    <td colspan="2">IT001</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarSimple ng-star-inserted">PROGRAMACION COMPUTACIONAL</td><!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 2,0,4) (7)</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 2023 / 1 )</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 4,6 / 1 )</td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!---->
+              <td class="asignatura__normal asignatura__APROBADO ng-star-inserted" align="center" title="IT003 PROGRAMACION AVANZADA
+Caracter : OBLIGATORIO(1)
+Créditos  : 6
+HORAS
+Catedra : 2 Taller : 0 Laboratorio : 4
+
+PRERREQUISITOS/CORREQUISITOS
+
+ - 4 PRErrequisito INDISPENSABLE
+
+ESTADO APROBADO  
+
+Semestre 2 Año 2023 
+Nota   5,4 Oportunidad 1" colspan="1" asicodigo="IT003" id="9" semestre="2" requisitos="4-1-1-P,14-1-1-A"
+                clasedefecto="asignatura__APROBADO">
+                <table>
+                  <tr>
+                    <td>9</td>
+                    <td colspan="2">IT003</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarSimple ng-star-inserted">PROGRAMACION AVANZADA</td><!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 2,0,4) (6)</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 2023 / 2 )</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 5,4 / 1 )</td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!---->
+              <td class="asignatura__normal asignatura__APROBADO ng-star-inserted" align="center" title="IT005 TECNICAS DE PROGRAMACION
+Caracter : OBLIGATORIO(1)
+Créditos  : 5
+HORAS
+Catedra : 2 Taller : 0 Laboratorio : 2
+
+PRERREQUISITOS/CORREQUISITOS
+
+ - 9 PRErrequisito INDISPENSABLE
+
+ESTADO APROBADO  
+
+Semestre 1 Año 2024 
+Nota   5,5 Oportunidad 1" colspan="1" asicodigo="IT005" id="14" semestre="3" requisitos="9-1-1-P,19-1-1-A,20-1-1-A"
+                clasedefecto="asignatura__APROBADO">
+                <table>
+                  <tr>
+                    <td>14</td>
+                    <td colspan="2">IT005</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarSimple ng-star-inserted">TECNICAS DE PROGRAMACION</td><!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 2,0,2) (5)</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 2024 / 1 )</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 5,5 / 1 )</td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!---->
+              <td class="asignatura__normal asignatura__APROBADO ng-star-inserted" align="center" title="IT007 DESARROLLO ORIENTADO A OBJETOS
+Caracter : OBLIGATORIO(1)
+Créditos  : 7
+HORAS
+Catedra : 4 Taller : 0 Laboratorio : 2
+
+PRERREQUISITOS/CORREQUISITOS
+
+ - 14 PRErrequisito INDISPENSABLE
+
+ESTADO APROBADO  
+
+Semestre 2 Año 2024 
+Nota   4,9 Oportunidad 1" colspan="1" asicodigo="IT007" id="19" semestre="4" requisitos="14-1-1-P,25-1-1-A"
+                clasedefecto="asignatura__APROBADO">
+                <table>
+                  <tr>
+                    <td>19</td>
+                    <td colspan="2">IT007</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarSimple ng-star-inserted">DESARROLLO ORIENTADO A OBJETOS</td><!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 4,0,2) (7)</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 2024 / 2 )</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 4,9 / 1 )</td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!---->
+              <td class="asignatura__normal ng-star-inserted asignatura__APROBADO" align="center" title="IT010 BASE DE DATOS
+Caracter : OBLIGATORIO(1)
+Créditos  : 6
+HORAS
+Catedra : 4 Taller : 0 Laboratorio : 2
+
+PRERREQUISITOS/CORREQUISITOS
+
+ - 19 PRErrequisito INDISPENSABLE
+
+ESTADO APROBADO  
+
+Semestre 1 Año 2025 
+Nota   5,7 Oportunidad 1" colspan="1" asicodigo="IT010" id="25" semestre="5" requisitos="19-1-1-P,31-1-1-A"
+                clasedefecto="asignatura__APROBADO">
+                <table>
+                  <tr>
+                    <td>25</td>
+                    <td colspan="2">IT010</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarSimple ng-star-inserted">BASE DE DATOS</td><!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 4,0,2) (6)</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 2025 / 1 )</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 5,7 / 1 )</td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!---->
+              <td class="asignatura__normal ng-star-inserted asignatura__APROBADO" align="center" title="IT013 TECNOLOGIAS WEB
+Caracter : OBLIGATORIO(1)
+Créditos  : 6
+HORAS
+Catedra : 2 Taller : 0 Laboratorio : 4
+
+PRERREQUISITOS/CORREQUISITOS
+
+ - 25 PRErrequisito INDISPENSABLE
+
+ESTADO APROBADO  
+
+Semestre 2 Año 2025 
+Nota   6,3 Oportunidad 1" colspan="1" asicodigo="IT013" id="31" semestre="6" requisitos="25-1-1-P,37-1-1-A,38-1-1-A"
+                clasedefecto="asignatura__APROBADO">
+                <table>
+                  <tr>
+                    <td>31</td>
+                    <td colspan="2">IT013</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarSimple ng-star-inserted">TECNOLOGIAS WEB</td><!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 2,0,4) (6)</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 2025 / 2 )</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 6,3 / 1 )</td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!---->
+              <td class="asignatura__normal ng-star-inserted asignatura__INSCRITO" align="center" title="IT018 INGENIERIA DE SOFTWARE
+Caracter : OBLIGATORIO(1)
+Créditos  : 6
+HORAS
+Catedra : 4 Taller : 2 Laboratorio : 0
+
+PRERREQUISITOS/CORREQUISITOS
+
+ - 31 PRErrequisito INDISPENSABLE" colspan="1" asicodigo="IT018" id="37" semestre="7" requisitos="31-1-1-P,45-1-1-A"
+                clasedefecto="asignatura__INSCRITO">
+                <table>
+                  <tr>
+                    <td>37</td>
+                    <td colspan="2">IT018</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarSimple ng-star-inserted">INGENIERIA DE SOFTWARE</td><!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 4,2,0) (6)</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!---->
+              <td class="asignatura__normal asignatura__sinTomar ng-star-inserted" align="center" title="IT025 LIDERAZGO EFECTIVO
+Caracter : OBLIGATORIO(1)
+Créditos  : 4
+HORAS
+Catedra : 2 Taller : 2 Laboratorio : 0
+
+PRERREQUISITOS/CORREQUISITOS
+
+ - 36 PRErrequisito INDISPENSABLE" colspan="1" asicodigo="IT025" id="44" semestre="8" requisitos="36-1-1-P"
+                clasedefecto="asignatura__sinTomar">
+                <table>
+                  <tr>
+                    <td>44</td>
+                    <td colspan="2">IT025</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarSimple ng-star-inserted">LIDERAZGO EFECTIVO</td><!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 2,2,0) (4)</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!---->
+              <td class="asignatura__normal asignatura__sinTomar ng-star-inserted" align="center" title="IT030 PROYECTO EMPRENDEDOR TECNOLOGICO
+Caracter : OBLIGATORIO(1)
+Créditos  : 6
+HORAS
+Catedra : 0 Taller : 6 Laboratorio : 0
+
+PRERREQUISITOS/CORREQUISITOS
+
+ - 45 PRErrequisito INDISPENSABLE" colspan="1" asicodigo="IT030" id="50" semestre="9" requisitos="45-1-1-P"
+                clasedefecto="asignatura__sinTomar">
+                <table>
+                  <tr>
+                    <td>50</td>
+                    <td colspan="2">IT030</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarSimple ng-star-inserted">PROYECTO EMPRENDEDOR TECNOLOGICO</td><!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 0,6,0) (6)</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!---->
+              <td class="asignatura__normal asignatura__vacia ng-star-inserted" align="center" title="" colspan="1"
+                asicodigo="despues" id="0" semestre="0" requisitos="" excepciones="" clasedefecto="asignatura__vacia">
+                <table>
+                  <tr>
+                    <td>0</td>
+                    <td colspan="2">despues</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarDoble ng-star-inserted"></td><!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!----><!---->
+            </tr>
+            <tr class="ng-star-inserted" style="">
+              <td class="asignatura__normal asignatura__APROBADO ng-star-inserted" align="center" title="IT002 INGENIERIA Y SOCIEDAD
+Caracter : OBLIGATORIO(1)
+Créditos  : 4
+HORAS
+Catedra : 2 Taller : 0 Laboratorio : 0
+
+ESTADO APROBADO  
+
+Semestre 1 Año 2023 
+Nota   5,7 Oportunidad 1" colspan="1" asicodigo="IT002" id="5" semestre="1" requisitos="10-1-1-A"
+                clasedefecto="asignatura__APROBADO">
+                <table>
+                  <tr>
+                    <td>5</td>
+                    <td colspan="2">IT002</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarSimple ng-star-inserted">INGENIERIA Y SOCIEDAD</td><!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 2,0,0) (4)</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 2023 / 1 )</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 5,7 / 1 )</td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!---->
+              <td class="asignatura__normal asignatura__APROBADO ng-star-inserted" align="center" title="IT004 INTRODUCCION A LA FORMULACION DE PROYECTOS
+Caracter : OBLIGATORIO(1)
+Créditos  : 5
+HORAS
+Catedra : 2 Taller : 2 Laboratorio : 0
+
+PRERREQUISITOS/CORREQUISITOS
+
+ - 5 PRErrequisito INDISPENSABLE
+
+ESTADO APROBADO  
+
+Semestre 2 Año 2023 
+Nota   6,0 Oportunidad 1" colspan="1" asicodigo="IT004" id="10" semestre="2" requisitos="5-1-1-P,23-1-1-A"
+                clasedefecto="asignatura__APROBADO">
+                <table>
+                  <tr>
+                    <td>10</td>
+                    <td colspan="2">IT004</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarSimple ng-star-inserted">INTRODUCCION A LA FORMULACION DE PROYECTOS</td>
+                    <!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 2,2,0) (5)</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 2023 / 2 )</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 6,0 / 1 )</td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!---->
+              <td class="asignatura__normal asignatura__APROBADO ng-star-inserted" align="center" title="DI257 INGLES I
+Caracter : OBLIGATORIO(1)
+Créditos  : 4
+HORAS
+Catedra : 0 Taller : 2 Laboratorio : 2
+
+ESTADO APROBADO  
+
+Semestre 1 Año 2024 
+Nota   6,3 Oportunidad 1" colspan="1" asicodigo="DI257" id="15" semestre="3" requisitos="21-1-1-A"
+                clasedefecto="asignatura__APROBADO">
+                <table>
+                  <tr>
+                    <td>15</td>
+                    <td colspan="2">DI257</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarSimple ng-star-inserted">INGLES I</td><!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 0,2,2) (4)</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 2024 / 1 )</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 6,3 / 1 )</td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!---->
+              <td class="asignatura__normal ng-star-inserted asignatura__APROBADO" align="center" title="IT008 ELECTRONICA DIGITAL
+Caracter : OBLIGATORIO(1)
+Créditos  : 5
+HORAS
+Catedra : 2 Taller : 0 Laboratorio : 2
+
+PRERREQUISITOS/CORREQUISITOS
+
+ - 14 PRErrequisito INDISPENSABLE
+
+ESTADO APROBADO  
+
+Semestre 2 Año 2024 
+Nota   5,1 Oportunidad 1" colspan="1" asicodigo="IT008" id="20" semestre="4" requisitos="14-1-1-P,26-1-1-A"
+                clasedefecto="asignatura__APROBADO">
+                <table>
+                  <tr>
+                    <td>20</td>
+                    <td colspan="2">IT008</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarSimple ng-star-inserted">ELECTRONICA DIGITAL</td><!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 2,0,2) (5)</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 2024 / 2 )</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 5,1 / 1 )</td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!---->
+              <td class="asignatura__normal ng-star-inserted asignatura__APROBADO" align="center" title="IT011 LABORATORIO DE REDES Y COMUNICACIONES
+Caracter : OBLIGATORIO(1)
+Créditos  : 5
+HORAS
+Catedra : 0 Taller : 0 Laboratorio : 6
+
+PRERREQUISITOS/CORREQUISITOS
+
+ - 20 PRErrequisito INDISPENSABLE
+
+ESTADO APROBADO  
+
+Semestre 1 Año 2025 
+Nota   6,5 Oportunidad 1" colspan="1" asicodigo="IT011" id="26" semestre="5" requisitos="20-1-1-P,32-1-1-A"
+                clasedefecto="asignatura__APROBADO">
+                <table>
+                  <tr>
+                    <td>26</td>
+                    <td colspan="2">IT011</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarSimple ng-star-inserted">LABORATORIO DE REDES Y COMUNICACIONES</td>
+                    <!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 0,0,6) (5)</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 2025 / 1 )</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 6,5 / 1 )</td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!---->
+              <td class="asignatura__normal ng-star-inserted asignatura__APROBADO" align="center" title="IT014 SEGURIDAD DE LAS TECNOLOGIAS DE LA INFORMACION
+Caracter : OBLIGATORIO(1)
+Créditos  : 4
+HORAS
+Catedra : 2 Taller : 2 Laboratorio : 0
+
+PRERREQUISITOS/CORREQUISITOS
+
+ - 26 PRErrequisito INDISPENSABLE
+
+ESTADO APROBADO  
+
+Semestre 2 Año 2025 
+Nota   5,5 Oportunidad 1" colspan="1" asicodigo="IT014" id="32" semestre="6" requisitos="26-1-1-P"
+                clasedefecto="asignatura__APROBADO">
+                <table>
+                  <tr>
+                    <td>32</td>
+                    <td colspan="2">IT014</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarSimple ng-star-inserted">SEGURIDAD DE LAS TECNOLOGIAS DE LA INFORMACION</td>
+                    <!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 2,2,0) (4)</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 2025 / 2 )</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 5,5 / 1 )</td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!---->
+              <td class="asignatura__normal ng-star-inserted asignatura__INSCRITO" align="center" title="IT019 SISTEMAS DE INFORMACION PARA LAS ORGANIZACIONES
+Caracter : OBLIGATORIO(1)
+Créditos  : 6
+HORAS
+Catedra : 4 Taller : 2 Laboratorio : 0
+
+PRERREQUISITOS/CORREQUISITOS
+
+ - 31 PRErrequisito INDISPENSABLE" colspan="1" asicodigo="IT019" id="38" semestre="7" requisitos="31-1-1-P"
+                clasedefecto="asignatura__INSCRITO">
+                <table>
+                  <tr>
+                    <td>38</td>
+                    <td colspan="2">IT019</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarSimple ng-star-inserted">SISTEMAS DE INFORMACION PARA LAS ORGANIZACIONES</td>
+                    <!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 4,2,0) (6)</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!---->
+              <td class="asignatura__normal ng-star-inserted asignatura__sinTomar" align="center" title="IT026 PROYECTO DE INNOVACION TECNOLOGICA
+Caracter : OBLIGATORIO(1)
+Créditos  : 7
+HORAS
+Catedra : 0 Taller : 6 Laboratorio : 0
+
+PRERREQUISITOS/CORREQUISITOS
+
+ - 37 PRErrequisito INDISPENSABLE" colspan="1" asicodigo="IT026" id="45" semestre="8" requisitos="37-1-1-P,50-1-1-A"
+                clasedefecto="asignatura__sinTomar">
+                <table>
+                  <tr>
+                    <td>45</td>
+                    <td colspan="2">IT026</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarSimple ng-star-inserted">PROYECTO DE INNOVACION TECNOLOGICA</td><!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 0,6,0) (7)</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!---->
+              <td class="asignatura__normal asignatura__INSCRITO ng-star-inserted" align="center" title="YY147 ELECTIVO DE FORMACION PROFESIONAL II
+Caracter : ELECTIVO(2)
+Créditos  : 4
+HORAS
+Catedra : 4 Taller : 0 Laboratorio : 0" colspan="1" asicodigo="YY147" id="51" semestre="9"
+                clasedefecto="asignatura__INSCRITO">
+                <table>
+                  <tr>
+                    <td>51</td>
+                    <td colspan="2">YY147</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarSimple ng-star-inserted">ELECTIVO DE FORMACION PROFESIONAL II</td>
+                    <!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 4,0,0) (4)</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!---->
+              <td class="asignatura__normal asignatura__vacia ng-star-inserted" align="center" title="" colspan="1"
+                asicodigo="despues" id="0" semestre="0" requisitos="" excepciones="" clasedefecto="asignatura__vacia">
+                <table>
+                  <tr>
+                    <td>0</td>
+                    <td colspan="2">despues</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarDoble ng-star-inserted"></td><!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!----><!---->
+            </tr>
+            <tr class="ng-star-inserted" style="">
+              <td class="asignatura__normal asignatura__vacia ng-star-inserted" align="center" title="" colspan="1"
+                asicodigo="antes" id="0" semestre="0" requisitos="" excepciones="" clasedefecto="asignatura__vacia ">
+                <table>
+                  <tr>
+                    <td>0</td>
+                    <td colspan="2">antes</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarDoble ng-star-inserted"></td><!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!---->
+              <td class="asignatura__normal asignatura__vacia ng-star-inserted" align="center" title="" colspan="1"
+                asicodigo="antes" id="0" semestre="0" requisitos="" excepciones="" clasedefecto="asignatura__vacia ">
+                <table>
+                  <tr>
+                    <td>0</td>
+                    <td colspan="2">antes</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarDoble ng-star-inserted"></td><!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!---->
+              <td class="asignatura__normal asignatura__vacia ng-star-inserted" align="center" title="" colspan="1"
+                asicodigo="antes" id="0" semestre="0" requisitos="" excepciones="" clasedefecto="asignatura__vacia ">
+                <table>
+                  <tr>
+                    <td>0</td>
+                    <td colspan="2">antes</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarDoble ng-star-inserted"></td><!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!---->
+              <td class="asignatura__normal asignatura__APROBADO ng-star-inserted" align="center" title="DI258 INGLES II
+Caracter : OBLIGATORIO(1)
+Créditos  : 4
+HORAS
+Catedra : 0 Taller : 2 Laboratorio : 2
+
+PRERREQUISITOS/CORREQUISITOS
+
+ - 15 PRErrequisito INDISPENSABLE
+
+ESTADO APROBADO  
+
+Semestre 2 Año 2024 
+Nota   6,5 Oportunidad 1" colspan="1" asicodigo="DI258" id="21" semestre="4" requisitos="15-1-1-P,27-1-1-A"
+                clasedefecto="asignatura__APROBADO">
+                <table>
+                  <tr>
+                    <td>21</td>
+                    <td colspan="2">DI258</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarSimple ng-star-inserted">INGLES II</td><!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 0,2,2) (4)</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 2024 / 2 )</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 6,5 / 1 )</td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!---->
+              <td class="asignatura__normal asignatura__APROBADO ng-star-inserted" align="center" title="DI264 INGLES III
+Caracter : OBLIGATORIO(1)
+Créditos  : 4
+HORAS
+Catedra : 0 Taller : 2 Laboratorio : 2
+
+PRERREQUISITOS/CORREQUISITOS
+
+ - 21 PRErrequisito INDISPENSABLE
+
+ESTADO APROBADO  
+
+Semestre 1 Año 2025 
+Nota   6,5 Oportunidad 1" colspan="1" asicodigo="DI264" id="27" semestre="5" requisitos="21-1-1-P,33-1-1-A"
+                clasedefecto="asignatura__APROBADO">
+                <table>
+                  <tr>
+                    <td>27</td>
+                    <td colspan="2">DI264</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarSimple ng-star-inserted">INGLES III</td><!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 0,2,2) (4)</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 2025 / 1 )</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 6,5 / 1 )</td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!---->
+              <td class="asignatura__normal asignatura__APROBADO ng-star-inserted" align="center" title="DI265 INGLES IV
+Caracter : OBLIGATORIO(1)
+Créditos  : 4
+HORAS
+Catedra : 0 Taller : 2 Laboratorio : 2
+
+PRERREQUISITOS/CORREQUISITOS
+
+ - 27 PRErrequisito INDISPENSABLE
+
+ESTADO APROBADO  
+
+Semestre 2 Año 2025 
+Nota   6,3 Oportunidad 1" colspan="1" asicodigo="DI265" id="33" semestre="6" requisitos="27-1-1-P"
+                clasedefecto="asignatura__APROBADO">
+                <table>
+                  <tr>
+                    <td>33</td>
+                    <td colspan="2">DI265</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarSimple ng-star-inserted">INGLES IV</td><!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 0,2,2) (4)</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 2025 / 2 )</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 6,3 / 1 )</td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!---->
+              <td class="asignatura__normal asignatura__INSCRITO ng-star-inserted" align="center" title="IT020 INVESTIGACION OPERATIVA
+Caracter : OBLIGATORIO(1)
+Créditos  : 5
+HORAS
+Catedra : 3 Taller : 1 Laboratorio : 0
+
+PRERREQUISITOS/CORREQUISITOS
+
+ - 22 PRErrequisito INDISPENSABLE" colspan="1" asicodigo="IT020" id="39" semestre="7" requisitos="22-1-1-P"
+                clasedefecto="asignatura__INSCRITO">
+                <table>
+                  <tr>
+                    <td>39</td>
+                    <td colspan="2">IT020</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarSimple ng-star-inserted">INVESTIGACION OPERATIVA</td><!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 3,1,0) (5)</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!---->
+              <td class="asignatura__normal asignatura__sinTomar ng-star-inserted" align="center" title="YY146 ELECTIVO DE FORMACION PROFESIONAL I
+Caracter : ELECTIVO(2)
+Créditos  : 4
+HORAS
+Catedra : 4 Taller : 0 Laboratorio : 0" colspan="1" asicodigo="YY146" id="46" semestre="8"
+                clasedefecto="asignatura__sinTomar">
+                <table>
+                  <tr>
+                    <td>46</td>
+                    <td colspan="2">YY146</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarSimple ng-star-inserted">ELECTIVO DE FORMACION PROFESIONAL I</td>
+                    <!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 4,0,0) (4)</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!---->
+              <td class="asignatura__normal asignatura__sinTomar ng-star-inserted" align="center" title="IT031 PRACTICA PROFESIONAL II
+Caracter : PRACTICA(3)
+Créditos  : 11
+HORAS
+Catedra : 26 Taller : 0 Laboratorio : 0
+
+PRERREQUISITOS/CORREQUISITO
+
+- Hasta 8 semestre aprobado
+" colspan="1" asicodigo="IT031" id="52" semestre="9" requisitosemestral="8-2--" clasedefecto="asignatura__sinTomar">
+                <table>
+                  <tr>
+                    <td>52</td>
+                    <td colspan="2">IT031</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarSimple ng-star-inserted">PRACTICA PROFESIONAL II</td><!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 426 Hrs ) (11)</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!---->
+              <td class="asignatura__normal asignatura__vacia ng-star-inserted" align="center" title="" colspan="1"
+                asicodigo="despues" id="0" semestre="0" requisitos="" excepciones="" clasedefecto="asignatura__vacia">
+                <table>
+                  <tr>
+                    <td>0</td>
+                    <td colspan="2">despues</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarDoble ng-star-inserted"></td><!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!----><!---->
+            </tr>
+            <tr class="ng-star-inserted" style="">
+              <td class="asignatura__normal asignatura__vacia ng-star-inserted" align="center" title="" colspan="1"
+                asicodigo="antes" id="0" semestre="0" requisitos="" excepciones="" clasedefecto="asignatura__vacia ">
+                <table>
+                  <tr>
+                    <td>0</td>
+                    <td colspan="2">antes</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarDoble ng-star-inserted"></td><!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!---->
+              <td class="asignatura__normal asignatura__vacia ng-star-inserted" align="center" title="" colspan="1"
+                asicodigo="antes" id="0" semestre="0" requisitos="" excepciones="" clasedefecto="asignatura__vacia ">
+                <table>
+                  <tr>
+                    <td>0</td>
+                    <td colspan="2">antes</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarDoble ng-star-inserted"></td><!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!---->
+              <td class="asignatura__normal asignatura__vacia ng-star-inserted" align="center" title="" colspan="1"
+                asicodigo="antes" id="0" semestre="0" requisitos="" excepciones="" clasedefecto="asignatura__vacia ">
+                <table>
+                  <tr>
+                    <td>0</td>
+                    <td colspan="2">antes</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarDoble ng-star-inserted"></td><!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!---->
+              <td class="asignatura__normal asignatura__vacia ng-star-inserted" align="center" title="" colspan="1"
+                asicodigo="antes" id="0" semestre="0" requisitos="" excepciones="" clasedefecto="asignatura__vacia ">
+                <table>
+                  <tr>
+                    <td>0</td>
+                    <td colspan="2">antes</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarDoble ng-star-inserted"></td><!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!---->
+              <td class="asignatura__normal asignatura__vacia ng-star-inserted" align="center" title="" colspan="1"
+                asicodigo="antes" id="0" semestre="0" requisitos="" excepciones="" clasedefecto="asignatura__vacia ">
+                <table>
+                  <tr>
+                    <td>0</td>
+                    <td colspan="2">antes</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarDoble ng-star-inserted"></td><!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!---->
+              <td class="asignatura__normal asignatura__vacia ng-star-inserted" align="center" title="" colspan="1"
+                asicodigo="antes" id="0" semestre="0" requisitos="" excepciones="" clasedefecto="asignatura__vacia ">
+                <table>
+                  <tr>
+                    <td>0</td>
+                    <td colspan="2">antes</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarDoble ng-star-inserted"></td><!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!---->
+              <td class="asignatura__normal asignatura__sinTomar ng-star-inserted" align="center" title="IT021 PRACTICA PROFESIONAL I
+Caracter : PRACTICA(3)
+Créditos  : 6
+HORAS
+Catedra : 13 Taller : 0 Laboratorio : 0
+
+PRERREQUISITOS/CORREQUISITO
+
+- Hasta 6 semestre aprobado
+" colspan="1" asicodigo="IT021" id="40" semestre="7" requisitosemestral="6-2--" clasedefecto="asignatura__sinTomar">
+                <table>
+                  <tr>
+                    <td>40</td>
+                    <td colspan="2">IT021</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarSimple ng-star-inserted">PRACTICA PROFESIONAL I</td><!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;">( 213 Hrs ) (6)</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!---->
+              <td class="asignatura__normal asignatura__vacia ng-star-inserted" align="center" title="" colspan="1"
+                asicodigo="despues" id="0" semestre="0" requisitos="" excepciones="" clasedefecto="asignatura__vacia">
+                <table>
+                  <tr>
+                    <td>0</td>
+                    <td colspan="2">despues</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarDoble ng-star-inserted"></td><!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!---->
+              <td class="asignatura__normal asignatura__vacia ng-star-inserted" align="center" title="" colspan="1"
+                asicodigo="despues" id="0" semestre="0" requisitos="" excepciones="" clasedefecto="asignatura__vacia">
+                <table>
+                  <tr>
+                    <td>0</td>
+                    <td colspan="2">despues</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarDoble ng-star-inserted"></td><!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!---->
+              <td class="asignatura__normal asignatura__vacia ng-star-inserted" align="center" title="" colspan="1"
+                asicodigo="despues" id="0" semestre="0" requisitos="" excepciones="" clasedefecto="asignatura__vacia">
+                <table>
+                  <tr>
+                    <td>0</td>
+                    <td colspan="2">despues</td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td class="nodesbordarDoble ng-star-inserted"></td><!----><!---->
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td style="text-align: center;"></td>
+                    <td></td>
+                  </tr>
+                </table>
+              </td><!----><!----><!----><!---->
+            </tr><!---->
+          </tbody>
+        </table>
+      </div>
+    </mallacurricular>
+  </div>
+</body>
+<script>
+  document.querySelectorAll('td.asignatura__normal').forEach(celda => {
+    // Remover el title nativo para que no aparezcan las notas al hacer hover
+    celda.removeAttribute('title');
+
+    // Cuando el mouse entra a la celda
+    celda.addEventListener('mouseenter', function () {
+      this.classList.add('hover-activo');
+
+      const reqsRaw = this.getAttribute('requisitos');
+      if (!reqsRaw) return; // Si no tiene requisitos, no hace nada
+
+      // Separar cada requisito (ej: "1-1-1-P")
+      const reqs = reqsRaw.split(',');
+
+      reqs.forEach(req => {
+        const partes = req.split('-');
+        const targetId = partes[0]; // El ID del ramo objetivo
+        const tipo = partes[3];     // 'P' o 'A'
+
+        const targetCelda = document.getElementById(targetId);
+
+        if (targetCelda) {
+          if (tipo === 'P') {
+            targetCelda.classList.add('prereq-rojo');
+          } else if (tipo === 'A') {
+            targetCelda.classList.add('abre-verde');
+          }
+        }
+      });
+    });
+
+    // Cuando el mouse sale de la celda (limpiar)
+    celda.addEventListener('mouseleave', function () {
+      this.classList.remove('hover-activo');
+
+      // Buscamos todas las celdas que pintamos y las limpiamos
+      document.querySelectorAll('.prereq-rojo, .abre-verde').forEach(target => {
+        target.classList.remove('prereq-rojo', 'abre-verde');
+      });
+    });
+  });
+
+  // --- Lógica del Grafo Interactivo (Vis.js) ---
+  let network = null;
+
+  function buildGraphData() {
+    const nodes = new vis.DataSet();
+    const edges = new vis.DataSet();
+    const addedNodes = new Set();
+    const addedEdges = new Set();
+
+    document.querySelectorAll('td.asignatura__normal').forEach(celda => {
+      const id = celda.getAttribute('id');
+      if (!id || id === '0') return; // Ignorar celdas de relleno
+
+      if (!addedNodes.has(id)) {
+        const codigo = celda.getAttribute('asicodigo');
+        const nombreEl = celda.querySelector('.nodesbordarSimple');
+        const nombre = nombreEl ? nombreEl.innerText : '';
+        const estado = celda.getAttribute('clasedefecto');
+        let semestre = parseInt(celda.getAttribute('semestre')) || 0;
+
+        let colorObj = { background: '#f8f9fa', border: '#ccc' }; // No Cursada
+        if (estado === 'asignatura__APROBADO') colorObj = { background: '#d4edda', border: '#28a745' };
+        else if (estado === 'asignatura__REPROBADO') colorObj = { background: '#f8d7da', border: '#dc3545' };
+        else if (estado === 'asignatura__INSCRITO') colorObj = { background: '#cce5ff', border: '#007bff' };
+
+        // --- Datos simulados para Investigación Operativa ---
+        const diff = (nombre.length % 5) + 1; // Dificultad determinista de 1 a 5
+        const nm = nombre.toUpperCase();
+        let esProtegido = false;
+
+        // Exclusión de Intocables: Inglés, Prácticas, Titulación
+        if (nm.includes('INGLES') || nm.includes('INGLÉS') || nm.includes('PRACTICA') || nm.includes('PRÁCTICA') || nm.includes('TITULACION') || nm.includes('TITULACIÓN') || nm.includes('MEMORIA') || nm.includes('TRABAJO DE TITULO')) {
+          esProtegido = true;
+        }
+
+        let comps = [];
+        if (nm.includes('CALCULO') || nm.includes('CÁLCULO')) comps.push('calculo');
+        if (nm.includes('ALGEBRA') || nm.includes('ÁLGEBRA')) comps.push('algebra');
+        if (nm.includes('ECUACION') || nm.includes('ECUACIÓN') || nm.includes('DIFERENCIALES')) comps.push('ecuaciones');
+        if (nm.includes('FISICA') || nm.includes('FÍSICA')) comps.push('fisica');
+        if (nm.includes('MECANICA') || nm.includes('MECÁNICA')) comps.push('mecanica');
+        if (nm.includes('ELECTRO')) comps.push('electromagnetismo');
+        if (nm.includes('TERMO')) comps.push('termodinamica');
+        if (nm.includes('PROGRAMACION') || nm.includes('PROGRAMACIÓN') || nm.includes('PROG')) comps.push('programacion');
+        if (nm.includes('OBJETOS') || nm.includes('TECNICAS') || nm.includes('TÉCNICAS')) comps.push('poo');
+        if (nm.includes('BASE DE DATOS') || nm.includes('DATOS')) comps.push('datos');
+        if (nm.includes('WEB')) comps.push('web');
+        if (nm.includes('SOCIEDAD') || nm.includes('ETICA') || nm.includes('ÉTICA') || nm.includes('MEDIO AMBIENTE')) comps.push('humanidades');
+        if (nm.includes('PROYECTO') || nm.includes('EMPRESA') || nm.includes('GESTION') || nm.includes('GESTIÓN')) comps.push('gestion');
+        if (comps.length === 0) comps = ['general']; // Fallback
+
+        // Asignación de Nivel de Profundidad (CRÍTICO: 1 al 4)
+        let nivel_profundidad = 3; // Avanzados por defecto
+        if (esProtegido && (nm.includes('TITULACION') || nm.includes('TITULACIÓN') || nm.includes('MEMORIA') || nm.includes('PRACTICA') || nm.includes('PRÁCTICA'))) {
+          nivel_profundidad = 4; // Titulación/Prácticas Finales
+        } else if (comps.includes('calculo') || comps.includes('algebra') || comps.includes('fisica') || comps.includes('mecanica') || comps.includes('ecuaciones')) {
+          nivel_profundidad = 2; // Ciencias Básicas / Cálculos
+        } else if (semestre <= 2 || nm.includes('INTRO') || nm.includes('FUNDAMENTO')) {
+          nivel_profundidad = 1; // Introducciones
+        }
+
+        nodes.add({
+          id: id,
+          label: `<b>${codigo}</b>\n${nombre}`,
+          level: semestre,
+          color: colorObj,
+          shape: 'box',
+          margin: { top: 15, bottom: 15, left: 20, right: 20 },
+          font: { multi: 'html', size: 16, face: 'system-ui, sans-serif' },
+          shadow: { enabled: true, color: 'rgba(0,0,0,0.15)', size: 10, x: 5, y: 5 },
+          // Metadatos I.O.
+          _dificultad: diff,
+          _competencias: comps,
+          _esProtegido: esProtegido,
+          _originalColor: colorObj
+        });
+        addedNodes.add(id);
+      }
+
+      const reqsRaw = celda.getAttribute('requisitos');
+      if (reqsRaw) {
+        const reqs = reqsRaw.split(',');
+        reqs.forEach(req => {
+          const partes = req.split('-');
+          const targetId = partes[0];
+          const tipo = partes[3];
+
+          if (targetId && targetId !== '0') {
+            // targetId es pre-requisito ('P') del id actual
+            if (tipo === 'P') {
+              const edgeId = `${targetId}-${id}`;
+              if (!addedEdges.has(edgeId)) {
+                edges.add({
+                  id: edgeId,
+                  from: targetId,
+                  to: id,
+                  arrows: 'to',
+                  color: { color: '#aaa', highlight: '#333' },
+                  smooth: { type: 'cubicBezier', forceDirection: 'horizontal', roundness: 0.4 }
+                });
+                addedEdges.add(edgeId);
+              }
+            }
+          }
+        });
+      }
+    });
+
+    return { nodes, edges };
+  }
+
+  document.getElementById('btnToggleView').addEventListener('click', function () {
+    const malla = document.getElementById('malla-container');
+    const netUI = document.getElementById('network-ui');
+    const netContainer = document.getElementById('network-container');
+    const cpmContainer = document.getElementById('cpm-container');
+
+    if (netUI.style.display === 'none') {
+      malla.style.display = 'none';
+      cpmContainer.style.display = 'none';
+      netUI.style.display = 'block';
+      netContainer.style.display = 'block'; // Asegurar que el canvas de Vis.js esté visible
+
+      if (!network) {
+        const data = buildGraphData();
+        const options = {
+          layout: {
+            hierarchical: {
+              enabled: true,
+              direction: 'LR', // De Izquierda a Derecha
+              sortMethod: 'directed',
+              nodeSpacing: 100,      // Mucho más espacio vertical
+              levelSeparation: 350,  // Columnas más separadas y ordenadas
+              treeSpacing: 100
+            }
+          },
+          physics: { enabled: false }, // Sin físicas libres, fijos a la capa jerárquica
+          edges: {
+            smooth: {
+              type: 'cubicBezier',
+              forceDirection: 'horizontal',
+              roundness: 0.5
+            },
+            color: { inherit: false, color: '#b3b3b3' },
+            arrows: { to: { enabled: true, scaleFactor: 1.2 } }
+          },
+          nodes: {
+            shape: 'box',
+            margin: { top: 15, bottom: 15, left: 20, right: 20 },
+            font: { size: 16, multi: 'html', face: 'system-ui, sans-serif' },
+            borderWidth: 2,
+            shadow: { enabled: true, color: 'rgba(0,0,0,0.15)', size: 10, x: 5, y: 5 }
+          },
+          interaction: {
+            dragNodes: true,
+            dragView: true,
+            zoomView: true,
+            hover: true
+          }
+        };
+        network = new vis.Network(netContainer, data, options);
+      }
+    }
+  });
+
+  document.addEventListener('click', function (e) {
+    if (e.target && e.target.id === 'btnCloseNetwork') {
+      document.getElementById('network-ui').style.display = 'none';
+      const btnCPM = document.getElementById('btnToggleCPM');
+      if (btnCPM.innerText.includes('Volver')) {
+        document.getElementById('cpm-container').style.display = 'block';
+      } else {
+        document.getElementById('malla-container').style.display = 'block';
+      }
+    }
+  });
+
+  // --- Lógica de la Ruta Crítica (CPM) ---
+  let cpmCalculated = false;
+
+  function calcularCPM() {
+    const nodes = {};
+
+    // 1. Recolectar nodos y aristas de la malla original
+    document.querySelectorAll('#malla-container td.asignatura__normal').forEach(celda => {
+      const id = celda.getAttribute('id');
+      if (!id || id === '0') return;
+
+      if (!nodes[id]) {
+        nodes[id] = { id: id, pre: [], suc: [], es: 0, ef: 1, ls: 0, lf: 0, slack: 0 };
+      }
+
+      const reqsRaw = celda.getAttribute('requisitos');
+      if (reqsRaw) {
+        const reqs = reqsRaw.split(',');
+        reqs.forEach(req => {
+          const partes = req.split('-');
+          const targetId = partes[0];
+          const tipo = partes[3];
+
+          if (targetId && targetId !== '0') {
+            // Si targetId es 'P' (Pre-requisito de id)
+            if (tipo === 'P') {
+              if (!nodes[targetId]) nodes[targetId] = { id: targetId, pre: [], suc: [], es: 0, ef: 1, ls: 0, lf: 0, slack: 0 };
+              nodes[id].pre.push(targetId);
+              nodes[targetId].suc.push(id);
+            }
+          }
+        });
+      }
+    });
+
+    // 2. Forward Pass (Calcular Early Start y Early Finish)
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const id in nodes) {
+        const node = nodes[id];
+
+        let maxPredEF = 0;
+        node.pre.forEach(p => {
+          if (nodes[p].ef > maxPredEF) maxPredEF = nodes[p].ef;
+        });
+
+        // Si no tiene pre-requisitos se queda en es=0, ef=1
+        if (node.pre.length === 0) continue;
+
+        if (node.es !== maxPredEF) {
+          node.es = maxPredEF;
+          node.ef = node.es + 1; // Duración = 1 semestre
+          changed = true;
+        }
+      }
+    }
+
+    let projectDuration = 0;
+    for (const id in nodes) {
+      if (nodes[id].ef > projectDuration) projectDuration = nodes[id].ef;
+    }
+
+    // 3. Backward Pass (Calcular Late Finish y Late Start)
+    for (const id in nodes) {
+      nodes[id].lf = projectDuration;
+      nodes[id].ls = nodes[id].lf - 1;
+    }
+
+    changed = true;
+    while (changed) {
+      changed = false;
+      for (const id in nodes) {
+        const node = nodes[id];
+        if (node.suc.length > 0) {
+          let minSuccLS = projectDuration;
+          node.suc.forEach(s => {
+            if (nodes[s].ls < minSuccLS) minSuccLS = nodes[s].ls;
+          });
+          if (node.lf !== minSuccLS) {
+            node.lf = minSuccLS;
+            node.ls = node.lf - 1;
+            changed = true;
+          }
+        }
+      }
+    }
+
+    // 4. Calcular Holgura (Slack)
+    for (const id in nodes) {
+      nodes[id].slack = nodes[id].ls - nodes[id].es;
+    }
+
+    return nodes;
+  }
+
+  document.getElementById('btnToggleCPM').addEventListener('click', function () {
+    const malla = document.getElementById('malla-container');
+    const cpmContainer = document.getElementById('cpm-container');
+    const netUI = document.getElementById('network-ui');
+
+    if (cpmContainer.style.display === 'none') {
+      // Activar vista CPM
+      malla.style.display = 'none';
+      netUI.style.display = 'none'; // Solo ocultar UI
+      cpmContainer.style.display = 'block';
+
+      this.innerText = 'Volver a Vista de Tabla';
+      this.style.backgroundColor = '#6c757d';
+
+      if (!cpmCalculated) {
+        // Clonar la tabla de la malla al contenedor CPM
+        const tablaOriginal = document.querySelector('#malla-container .contenedorMalla:nth-of-type(2)');
+        if (tablaOriginal) {
+          const tablaClonada = tablaOriginal.cloneNode(true);
+          cpmContainer.appendChild(tablaClonada);
+
+          const cpmData = calcularCPM();
+
+          // Aplicar clases según el Slack (Holgura)
+          cpmContainer.querySelectorAll('td.asignatura__normal').forEach(celda => {
+            const id = celda.getAttribute('id');
+            if (id && id !== '0' && cpmData[id]) {
+              const holgura = cpmData[id].slack;
+              if (holgura === 0) {
+                celda.classList.add('cpm-critico');
+              } else {
+                celda.classList.add('cpm-flexible');
+              }
+            }
+          });
+          cpmCalculated = true;
+        }
+      }
+    } else {
+      // Volver a la vista normal
+      malla.style.display = 'block';
+      cpmContainer.style.display = 'none';
+      netUI.style.display = 'none';
+
+      this.innerText = 'Ver Cuellos de Botella (CPM)';
+      this.style.backgroundColor = '#dc3545';
+    }
+  });
+
+  // --- Lógicas I.O. en el Grafo ---
+  document.getElementById('btnGraphCPM').addEventListener('click', function () {
+    if (!network) return;
+    const cpmData = calcularCPM(); // Reutiliza la función ya creada
+    const dsNodes = network.body.data.nodes;
+
+    dsNodes.get().forEach(node => {
+      if (cpmData[node.id]) {
+        const slack = cpmData[node.id].slack;
+        if (slack === 0) {
+          // Cuello de Botella
+          dsNodes.update({
+            id: node.id,
+            color: { background: '#ffe6e6', border: '#ff0000' },
+            borderWidth: 4,
+            shadow: { enabled: true, color: 'red', size: 15, x: 0, y: 0 },
+            font: { color: '#000' }
+          });
+        } else {
+          // Flexible
+          dsNodes.update({
+            id: node.id,
+            color: { background: 'rgba(200,200,200,0.4)', border: 'rgba(150,150,150,0.4)' },
+            borderWidth: 1,
+            shadow: { enabled: false },
+            font: { color: 'rgba(50,50,50,0.5)' }
+          });
+        }
+      }
+    });
+  });
+
+  document.getElementById('btnGraphOpt').addEventListener('click', function () {
+    if (!network) return;
+    const dsNodes = network.body.data.nodes;
+    const dsEdges = network.body.data.edges;
+    let allNodes = dsNodes.get();
+
+    // 1. Fusión por Jaccard
+    let fused = new Set();
+    for (let i = 0; i < allNodes.length; i++) {
+      for (let j = i + 1; j < allNodes.length; j++) {
+        let n1 = allNodes[i];
+        let n2 = allNodes[j];
+        if (fused.has(n1.id) || fused.has(n2.id)) continue;
+        if (n1._esProtegido || n2._esProtegido) continue; // Regla Crítica: Intocables
+        if (n1._nivel_profundidad !== n2._nivel_profundidad) continue; // Regla Crítica: Mismo nivel_profundidad EXACTO
+
+        // Similitud Jaccard
+        let inter = n1._competencias.filter(c => n2._competencias.includes(c));
+        let union = new Set([...n1._competencias, ...n2._competencias]);
+        let jaccard = inter.length / union.size;
+
+        if (jaccard >= 0.75) {
+          // Límite de Fusión: no absorber más de 3 ramos
+          if (!n1._fusionCount) n1._fusionCount = 1;
+          if (!n2._fusionCount) n2._fusionCount = 1;
+          if (n1._fusionCount + n2._fusionCount > 3) continue;
+
+          if (!n1._creditos) n1._creditos = 5; // Asumimos 5 por defecto
+          if (!n2._creditos) n2._creditos = 5;
+
+          // Diccionario de Super-Nodos (Nombres Inteligentes)
+          function getSmartName(compArray) {
+            const cSet = new Set(compArray);
+            if (cSet.has('calculo') && cSet.has('ecuaciones')) return "Matemáticas Aplicadas a la Ingeniería";
+            if (cSet.has('calculo')) return "Cálculo Diferencial e Integral";
+            if (cSet.has('algebra')) return "Álgebra Lineal y Matemática Discreta";
+            if (cSet.has('fisica') && cSet.has('mecanica')) return "Física para Sistemas Computacionales";
+            if (cSet.has('electromagnetismo') || cSet.has('termodinamica')) return "Señales y Sistemas Físicos";
+            if (cSet.has('programacion') && !cSet.has('poo')) return "Fundamentos de Algoritmia y Estructuras";
+            if (cSet.has('poo')) return "Arquitectura de Software y Paradigmas";
+            if (cSet.has('datos') || cSet.has('web')) return "Ingeniería de Datos y Sistemas Web";
+            if (cSet.has('humanidades')) return "Ética y Sostenibilidad Tecnológica";
+            if (cSet.has('gestion')) return "Formulación y Gestión de Proyectos TI";
+
+            let fallback = compArray[0] || 'Ingeniería';
+            return "Módulo Integrado de " + fallback.charAt(0).toUpperCase() + fallback.slice(1);
+          }
+
+          // Fusionar n2 en n1
+          n1._fusionCount += n2._fusionCount;
+          n1._creditos += n2._creditos;
+          n1._dificultad = (n1._dificultad + n2._dificultad) / 2;
+
+          // Unir competencias para el nombre inteligente
+          n1._competencias = Array.from(union);
+          let smartName = getSmartName(n1._competencias);
+          n1.label = `<b>${smartName}</b>\n(Créditos Totales: ${n1._creditos})`;
+
+          n1.color = { background: '#e0f7fa', border: '#00bcd4' }; // Azul muy suave y elegante
+          n1.borderWidth = 3;
+
+          // Reasignar aristas de n2 a n1 (Asegurar DAG)
+          let edgesToUpdate = [];
+          dsEdges.get().forEach(edge => {
+            if (edge.from === n2.id && edge.to !== n1.id) edgesToUpdate.push({ id: edge.id, from: n1.id });
+            if (edge.to === n2.id && edge.from !== n1.id) edgesToUpdate.push({ id: edge.id, to: n1.id });
+          });
+          dsEdges.update(edgesToUpdate);
+
+          dsNodes.update(n1);
+          dsNodes.remove(n2.id);
+          fused.add(n2.id);
+        }
+      }
+    }
+
+    // 2. Ordenamiento Topológico y Asignación de Semestres (CRÍTICO)
+    allNodes = dsNodes.get();
+    let currentEdges = dsEdges.get();
+
+    // Estructuras de grafos
+    let adjList = {};
+    let inDegree = {};
+    allNodes.forEach(n => {
+      adjList[n.id] = [];
+      inDegree[n.id] = 0;
+    });
+
+    currentEdges.forEach(e => {
+      if (adjList[e.from] && inDegree[e.to] !== undefined) {
+        adjList[e.from].push(e.to);
+        inDegree[e.to]++;
+      }
+    });
+
+    let semesterLoads = {}; // sumatoria de dificultad por semestre asignado
+    let nodeSemester = {};  // id -> semestre
+    let readyQueue = [];
+
+    // Nodos iniciales (sin prerrequisitos)
+    allNodes.forEach(n => {
+      if (inDegree[n.id] === 0) readyQueue.push(n);
+    });
+
+    function getMinSemester(nivel) {
+      if (nivel === 1) return 1; // Nivelación empieza en S1
+      if (nivel === 2) return 2; // Regla Crítica: Ciencias básicas NUNCA en S1
+      if (nivel === 3) return 3; // Avanzados empiezan en 3+
+      if (nivel === 4) return 7; // Titulación/Prácticas SOLO en S7
+      return 1;
+    }
+
+    let unassigned = allNodes.length;
+
+    // Algoritmo de Kahn Modificado para Proceso de Bolonia (Max 7 Semestres)
+    while (readyQueue.length > 0 && unassigned > 0) {
+      // Ordenamos la cola para priorizar los de menor nivel_profundidad (Regla de Jerarquía)
+      readyQueue.sort((a, b) => {
+        if (a._nivel_profundidad !== b._nivel_profundidad) return a._nivel_profundidad - b._nivel_profundidad;
+        return b._dificultad - a._dificultad;
+      });
+
+      let node = readyQueue.shift();
+
+      // Regla 1: Precedencia (S > max(S_prereq))
+      let maxPreReqSem = 0;
+      currentEdges.forEach(e => {
+        if (e.to === node.id && nodeSemester[e.from]) {
+          if (nodeSemester[e.from] > maxPreReqSem) {
+            maxPreReqSem = nodeSemester[e.from];
+          }
+        }
+      });
+
+      // Calculamos el semestre mínimo permitido combinando precedencia y nivel de profundidad
+      let minS = Math.max(maxPreReqSem + 1, getMinSemester(node._nivel_profundidad));
+
+      // Regla de Oro: El semestre 1 es exclusivo para nivel_profundidad 1 y sin pre-requisitos
+      if (minS === 1 && (node._nivel_profundidad !== 1 || maxPreReqSem > 0)) {
+        minS = 2;
+      }
+
+      // Regla 3: Balance de Carga (Máximo 12 puntos de dificultad por semestre), techo S=7
+      let assignedS = minS;
+      while (assignedS < 7) {
+        let currentLoad = semesterLoads[assignedS] || 0;
+        if (currentLoad + node._dificultad <= 12 || currentLoad === 0) {
+          break;
+        }
+        assignedS++;
+      }
+
+      // Regla Extremo Derecho: Forzar Titulación/Prácticas a S7
+      if (node._nivel_profundidad === 4) {
+        assignedS = 7;
+      }
+
+      // Comprimir todo al límite de 7 para cumplir el estándar de Bolonia
+      if (assignedS > 7 && node._nivel_profundidad !== 4) {
+        assignedS = 7;
+      }
+
+      // Registrar asignación
+      nodeSemester[node.id] = assignedS;
+      semesterLoads[assignedS] = (semesterLoads[assignedS] || 0) + node._dificultad;
+      unassigned--;
+
+      // Actualizar el nodo en Vis.js
+      node.level = assignedS;
+      dsNodes.update({ id: node.id, level: assignedS });
+
+      // Liberar sucesores (Reducir inDegree)
+      adjList[node.id].forEach(successorId => {
+        inDegree[successorId]--;
+        if (inDegree[successorId] === 0) {
+          let sucNode = allNodes.find(n => n.id === successorId);
+          if (sucNode) readyQueue.push(sucNode);
+        }
+      });
+    }
+
+    // CRÍTICO: Forzar a Vis.js a recalcular y re-renderizar la jerarquía visual
+    network.setData({ nodes: dsNodes, edges: dsEdges });
+  });
+</script>
+
+</html>
