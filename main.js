@@ -98,9 +98,15 @@ document.querySelectorAll('td.asignatura__normal').forEach(celda => {
           nivel_profundidad = 1; // Introducciones
         }
 
+        let rowIndex = 0;
+        let tr = celda.closest('tr');
+        if (tr && tr.parentNode) rowIndex = Array.from(tr.parentNode.children).indexOf(tr);
+
         nodes.add({
           id: id,
           label: `<b>${codigo}</b>\n${nombre}`,
+          x: semestre * 300,
+          y: rowIndex * 100,
           level: semestre,
           color: colorObj,
           shape: 'box',
@@ -111,7 +117,8 @@ document.querySelectorAll('td.asignatura__normal').forEach(celda => {
           _dificultad: diff,
           _competencias: comps,
           _esProtegido: esProtegido,
-          _originalColor: colorObj
+          _originalColor: colorObj,
+          _originalRow: rowIndex
         });
         addedNodes.add(id);
       }
@@ -163,17 +170,8 @@ document.querySelectorAll('td.asignatura__normal').forEach(celda => {
       if (!network) {
         const data = buildGraphData();
         const options = {
-          layout: {
-            hierarchical: {
-              enabled: true,
-              direction: 'LR', // De Izquierda a Derecha estricto
-              // Sin sortMethod para evitar el efecto cascada/diagonal, deja que el motor los centre
-              nodeSpacing: 100,      // Espaciado vertical
-              levelSeparation: 350,  // Columnas más separadas y ordenadas
-              treeSpacing: 100
-            }
-          },
-          physics: { enabled: false }, // Sin físicas libres, fijos a la capa jerárquica
+          layout: { hierarchical: false }, // Apagamos la jerarquía, usamos la Grilla Absoluta (X, Y)
+          physics: { enabled: false }, // Sin físicas libres, fijos a sus coordenadas
           edges: {
             smooth: {
               type: 'cubicBezier',
@@ -641,9 +639,26 @@ document.querySelectorAll('td.asignatura__normal').forEach(celda => {
       semesterLoads[assignedS] = (semesterLoads[assignedS] || 0) + node._dificultad;
       unassigned--;
 
-      // Actualizar el nodo en Vis.js, Vis.js se encarga de posicionarlo en (X, Y) automáticamente basado en su level
-      node.level = assignedS;
-      dsNodes.update({ id: node.id, level: assignedS });
+      // Actualizar el nodo en Vis.js usando la Grilla Absoluta
+      let currentX = assignedS * 300;
+      let currentY = (node._originalRow || 0) * 100;
+      
+      let overlap = true;
+      let safeCounter = 0;
+      while (overlap && safeCounter < 30) {
+        overlap = false;
+        allNodes.forEach(n => {
+           if (n.id !== node.id && n.x === currentX && n.y === currentY) {
+              overlap = true;
+              currentY += 100; // Bajar en la misma columna si choca
+           }
+        });
+        safeCounter++;
+      }
+      
+      node.x = currentX;
+      node.y = currentY;
+      dsNodes.update({ id: node.id, x: node.x, y: node.y, level: assignedS });
 
       // Liberar sucesores (Reducir inDegree)
       adjList[node.id].forEach(successorId => {
