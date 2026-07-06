@@ -105,8 +105,8 @@ document.querySelectorAll('td.asignatura__normal').forEach(celda => {
         nodes.add({
           id: id,
           label: `<b>${codigo}</b>\n${nombre}`,
-          x: semestre * 300,
-          y: rowIndex * 100,
+          x: semestre * 450,
+          y: rowIndex * 120,
           level: semestre,
           color: colorObj,
           shape: 'box',
@@ -640,8 +640,8 @@ document.querySelectorAll('td.asignatura__normal').forEach(celda => {
       unassigned--;
 
       // Actualizar el nodo en Vis.js usando la Grilla Absoluta
-      let currentX = assignedS * 300;
-      let currentY = (node._originalRow || 0) * 100;
+      let currentX = assignedS * 450;
+      let currentY = (node._originalRow || 0) * 120;
       
       let overlap = true;
       let safeCounter = 0;
@@ -650,7 +650,7 @@ document.querySelectorAll('td.asignatura__normal').forEach(celda => {
         allNodes.forEach(n => {
            if (n.id !== node.id && n.x === currentX && n.y === currentY) {
               overlap = true;
-              currentY += 100; // Bajar en la misma columna si choca
+              currentY += 120; // Bajar en la misma columna si choca
            }
         });
         safeCounter++;
