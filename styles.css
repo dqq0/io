@@ -1,0 +1,139 @@
+/* Estilos básicos de respaldo para que la tabla se pueda leer, 
+           ya que no tenemos el CSS original de tu universidad */
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      font-size: 12px;
+    }
+
+    table {
+      border-collapse: collapse;
+      margin-bottom: 20px;
+    }
+
+    th,
+    td {
+      border: 1px solid #ddd;
+      padding: 8px;
+    }
+
+    .asignatura__APROBADO {
+      background-color: #d4edda;
+    }
+
+    /* Verde para aprobado */
+    .asignatura__REPROBADO {
+      background-color: #f8d7da;
+    }
+
+    /* Rojo para reprobado */
+    .asignatura__INSCRITO {
+      background-color: #cce5ff;
+    }
+
+    /* Azul para inscrito */
+    .asignatura__sinTomar {
+      background-color: #f8f9fa;
+      color: #6c757d;
+    }
+
+    /* Gris para no cursada */
+    .asignatura__vacia {
+      border: none;
+      background: transparent;
+    }
+
+    /* Celdas vacías */
+
+    .tablainlineIZQ,
+    .tablainlineDER {
+      display: inline-table;
+      margin-right: 20px;
+    }
+
+    td.asignatura__normal table tr:nth-child(4),
+    td.asignatura__normal table tr:nth-child(5) {
+      display: none !important;
+    }
+
+    .nodesbordarSimple {
+      font-size: 10px;
+      font-weight: bold;
+    }
+
+    /* Transición suave para el hover */
+    td.asignatura__normal {
+      transition: background-color 0.2s, transform 0.2s;
+      cursor: pointer;
+    }
+
+    /* Colores para el efecto */
+    td.hover-activo {
+      z-index: 5;
+      position: relative;
+    }
+
+    td.hover-activo table {
+      transform: scale(1.05);
+      box-shadow: 0 0 15px rgba(0, 123, 255, 0.5);
+      background-color: #e6f2ff !important; /* Fondo azul claro */
+      border: 2px solid #007bff !important; /* Borde azul fuerte */
+      border-collapse: separate; /* Prevenir corte de bordes */
+      transition: transform 0.2s, background-color 0.2s;
+    }
+
+    td.prereq-rojo table {
+      background-color: #ffcccc !important;
+      /* Rojo claro */
+      border: 2px solid red !important;
+      border-collapse: separate;
+    }
+
+    td.abre-verde table {
+      background-color: #ccffcc !important;
+      /* Verde claro */
+      border: 2px solid green !important;
+      border-collapse: separate;
+    }
+
+    .asignatura__APROBADO,
+    .asignatura__REPROBADO,
+    .asignatura__INSCRITO,
+    .asignatura__sinTomar {
+      background-color: #ffffff !important;
+      color: #333333 !important;
+    }
+
+    /* Ocultar celdas vacías sin desarmar las columnas */
+    td.asignatura__vacia {
+      visibility: hidden !important;
+      border: none !important;
+    }
+
+    /* Por si acaso, también ocultamos cualquier tablita interna de las celdas vacías */
+    td.asignatura__vacia table {
+      display: none !important;
+    }
+
+    /* Alinear las tarjetas hacia la parte superior */
+    td.asignatura__normal {
+      vertical-align: top;
+      transition: background-color 0.2s, transform 0.2s;
+      /* Mantiene la animación del hover */
+      cursor: pointer;
+    }
+
+    /* Estilos para modo CPM */
+    td.cpm-critico table {
+      border: 4px solid #ff0000 !important;
+      box-shadow: 0 0 15px 2px rgba(255, 0, 0, 0.8) !important;
+      border-radius: 4px;
+      position: relative;
+      z-index: 10;
+      background-color: #ffe6e6 !important;
+    }
+
+    td.cpm-flexible {
+      opacity: 0.3 !important;
+      filter: grayscale(100%) !important;
+    }
