@@ -365,35 +365,59 @@ document.querySelectorAll('td.asignatura__normal').forEach(celda => {
   });
 
   // --- Lógicas I.O. en el Grafo ---
+  let cpmGraphActive = false;
   document.getElementById('btnGraphCPM').addEventListener('click', function () {
     if (!network) return;
-    const cpmData = calcularCPM(); // Reutiliza la función ya creada
     const dsNodes = network.body.data.nodes;
 
-    dsNodes.get().forEach(node => {
-      if (cpmData[node.id]) {
-        const slack = cpmData[node.id].slack;
-        if (slack === 0) {
-          // Cuello de Botella
-          dsNodes.update({
-            id: node.id,
-            color: { background: '#ffe6e6', border: '#ff0000' },
-            borderWidth: 4,
-            shadow: { enabled: true, color: 'red', size: 15, x: 0, y: 0 },
-            font: { color: '#000' }
-          });
-        } else {
-          // Flexible
-          dsNodes.update({
-            id: node.id,
-            color: { background: 'rgba(200,200,200,0.4)', border: 'rgba(150,150,150,0.4)' },
-            borderWidth: 1,
-            shadow: { enabled: false },
-            font: { color: 'rgba(50,50,50,0.5)' }
-          });
+    if (!cpmGraphActive) {
+      const cpmData = calcularCPM(); // Reutiliza la función ya creada
+      
+      dsNodes.get().forEach(node => {
+        if (cpmData[node.id]) {
+          const slack = cpmData[node.id].slack;
+          if (slack === 0) {
+            // Cuello de Botella
+            dsNodes.update({
+              id: node.id,
+              color: { background: '#ffe6e6', border: '#ff0000' },
+              borderWidth: 4,
+              shadow: { enabled: true, color: 'red', size: 15, x: 0, y: 0 },
+              font: { color: '#000' }
+            });
+          } else {
+            // Flexible
+            dsNodes.update({
+              id: node.id,
+              color: { background: 'rgba(200,200,200,0.4)', border: 'rgba(150,150,150,0.4)' },
+              borderWidth: 1,
+              shadow: { enabled: false },
+              font: { color: 'rgba(50,50,50,0.5)' }
+            });
+          }
         }
-      }
-    });
+      });
+      
+      this.innerText = 'Ocultar Cuellos de Botella';
+      this.style.backgroundColor = '#6c757d'; // Gris
+      cpmGraphActive = true;
+      
+    } else {
+      // Restaurar el grafo a la normalidad
+      dsNodes.get().forEach(node => {
+        dsNodes.update({
+          id: node.id,
+          color: node._originalColor || { background: '#ffffff', border: '#444' },
+          borderWidth: 2,
+          shadow: { enabled: true, color: 'rgba(0,0,0,0.15)', size: 10, x: 5, y: 5 },
+          font: { color: '#000' }
+        });
+      });
+      
+      this.innerText = 'Ver Cuellos de Botella (CPM)';
+      this.style.backgroundColor = '#dc3545'; // Rojo
+      cpmGraphActive = false;
+    }
   });
 
   document.getElementById('btnGraphOpt').addEventListener('click', function () {
