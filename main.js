@@ -60,10 +60,7 @@ document.querySelectorAll('td.asignatura__normal').forEach(celda => {
         const estado = celda.getAttribute('clasedefecto');
         let semestre = parseInt(celda.getAttribute('semestre')) || 0;
 
-        let colorObj = { background: '#f8f9fa', border: '#ccc' }; // No Cursada
-        if (estado === 'asignatura__APROBADO') colorObj = { background: '#d4edda', border: '#28a745' };
-        else if (estado === 'asignatura__REPROBADO') colorObj = { background: '#f8d7da', border: '#dc3545' };
-        else if (estado === 'asignatura__INSCRITO') colorObj = { background: '#cce5ff', border: '#007bff' };
+        let colorObj = { background: '#ffffff', border: '#444' }; // Todo blanco, borde oscuro sutil
 
         // --- Datos simulados para Investigación Operativa ---
         const diff = (nombre.length % 5) + 1; // Dificultad determinista de 1 a 5
@@ -101,15 +98,10 @@ document.querySelectorAll('td.asignatura__normal').forEach(celda => {
           nivel_profundidad = 1; // Introducciones
         }
 
-        let rowIndex = 0;
-        let tr = celda.closest('tr');
-        if (tr && tr.parentNode) rowIndex = Array.from(tr.parentNode.children).indexOf(tr);
-
         nodes.add({
           id: id,
           label: `<b>${codigo}</b>\n${nombre}`,
-          x: semestre * 350,
-          y: rowIndex * 120,
+          level: semestre,
           color: colorObj,
           shape: 'box',
           margin: { top: 15, bottom: 15, left: 20, right: 20 },
@@ -119,8 +111,7 @@ document.querySelectorAll('td.asignatura__normal').forEach(celda => {
           _dificultad: diff,
           _competencias: comps,
           _esProtegido: esProtegido,
-          _originalColor: colorObj,
-          _originalRow: rowIndex
+          _originalColor: colorObj
         });
         addedNodes.add(id);
       }
@@ -172,8 +163,17 @@ document.querySelectorAll('td.asignatura__normal').forEach(celda => {
       if (!network) {
         const data = buildGraphData();
         const options = {
-          layout: { hierarchical: false }, // Apagamos la jerarquía estricta para usar Coordenadas Absolutas (Grid Manual)
-          physics: { enabled: false }, // Sin físicas, los nodos se quedarán en su X e Y asignados de forma rígida
+          layout: {
+            hierarchical: {
+              enabled: true,
+              direction: 'LR', // De Izquierda a Derecha estricto
+              // Sin sortMethod para evitar el efecto cascada/diagonal, deja que el motor los centre
+              nodeSpacing: 100,      // Espaciado vertical
+              levelSeparation: 350,  // Columnas más separadas y ordenadas
+              treeSpacing: 100
+            }
+          },
+          physics: { enabled: false }, // Sin físicas libres, fijos a la capa jerárquica
           edges: {
             smooth: {
               type: 'cubicBezier',
@@ -617,27 +617,9 @@ document.querySelectorAll('td.asignatura__normal').forEach(celda => {
       semesterLoads[assignedS] = (semesterLoads[assignedS] || 0) + node._dificultad;
       unassigned--;
 
-      // Actualizar el nodo en Vis.js usando Grid Layout Manual
-      let currentX = assignedS * 350;
-      let currentY = (node._originalRow || 0) * 120;
-      
-      // Lógica simple anti-colisión: si la casilla (x,y) ya está ocupada por otro nodo procesado, bajarlo
-      let overlap = true;
-      let antiInfinite = 0;
-      while (overlap && antiInfinite < 20) {
-        overlap = false;
-        allNodes.forEach(n => {
-           if (n.id !== node.id && n.x === currentX && n.y === currentY) {
-              overlap = true;
-              currentY += 120; // Bajar a la siguiente fila
-           }
-        });
-        antiInfinite++;
-      }
-      
-      node.x = currentX;
-      node.y = currentY;
-      dsNodes.update({ id: node.id, x: node.x, y: node.y });
+      // Actualizar el nodo en Vis.js, Vis.js se encarga de posicionarlo en (X, Y) automáticamente basado en su level
+      node.level = assignedS;
+      dsNodes.update({ id: node.id, level: assignedS });
 
       // Liberar sucesores (Reducir inDegree)
       adjList[node.id].forEach(successorId => {
