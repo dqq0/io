@@ -118,7 +118,8 @@ document.querySelectorAll('td.asignatura__normal').forEach(celda => {
           _competencias: comps,
           _esProtegido: esProtegido,
           _originalColor: colorObj,
-          _originalRow: rowIndex
+          _originalRow: rowIndex,
+          _nivel_profundidad: nivel_profundidad
         });
         addedNodes.add(id);
       }
@@ -583,7 +584,7 @@ document.querySelectorAll('td.asignatura__normal').forEach(celda => {
       if (nivel === 1) return 1; // Nivelación empieza en S1
       if (nivel === 2) return 2; // Regla Crítica: Ciencias básicas NUNCA en S1
       if (nivel === 3) return 3; // Avanzados empiezan en 3+
-      if (nivel === 4) return 7; // Titulación/Prácticas SOLO en S7
+      if (nivel === 4) return maxSemesters; // Titulación/Prácticas SOLO en último semestre dinámico
       return 1;
     }
 
