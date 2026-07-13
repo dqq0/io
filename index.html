@@ -37,28 +37,42 @@
     </div>
 
     <!-- Panel Lateral de Ajustes de Optimización -->
-    <div id="settingsPanel" style="position: absolute; top: 80px; left: 20px; z-index: 1002; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 8px 25px rgba(0,0,0,0.2); width: 320px; display: none; flex-direction: column; gap: 15px;">
-       <h3 style="margin-top:0; color: #333; font-family: sans-serif; border-bottom: 2px solid #eee; padding-bottom: 10px;">Ajustes del Modelo</h3>
-       
-       <label for="selectMencion" style="font-weight: bold; color: #555; font-family: sans-serif;">Modelo / Mención (Minor):</label>
-       <select id="selectMencion" style="padding: 10px; font-size: 15px; border: 1px solid #ccc; border-radius: 6px; outline: none; cursor: pointer;">
-          <option value="general">Informática General</option>
-          <option value="economia">Economía y Gestión</option>
-          <option value="fisica">Sistemas Físicos</option>
-          <option value="sostenibilidad">Medio Ambiente y Ética</option>
-       </select>
-       
-       <label for="selectJaccard" style="font-weight: bold; color: #555; font-family: sans-serif;">Agrupación (Jaccard):</label>
-       <select id="selectJaccard" style="padding: 10px; font-size: 15px; border: 1px solid #ccc; border-radius: 6px; outline: none; cursor: pointer;">
-          <option value="none">Desactivado (Ver Nodos Originales)</option>
-          <option value="light">Leve (Solo similitud > 0.90)</option>
-          <option value="full" selected>Completa (Similitud > 0.75)</option>
-       </select>
+    <div id="settingsPanel"
+      style="position: absolute; top: 80px; left: 20px; z-index: 1002; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 8px 25px rgba(0,0,0,0.2); width: 320px; display: none; flex-direction: column; gap: 15px;">
+      <h3
+        style="margin-top:0; color: #333; font-family: sans-serif; border-bottom: 2px solid #eee; padding-bottom: 10px;">
+        Ajustes del Modelo</h3>
 
-       <button id="btnGraphOpt"
-         style="margin-top: 10px; padding: 12px; font-size: 16px; cursor: pointer; background-color: #28a745; color: white; border: none; border-radius: 8px; font-weight: bold; transition: background-color 0.2s;">
-         Aplicar Optimización
-       </button>
+      <label for="selectMencion" style="font-weight: bold; color: #555; font-family: sans-serif;">Modelo / Mención
+        (Minor):</label>
+      <select id="selectMencion"
+        style="padding: 10px; font-size: 15px; border: 1px solid #ccc; border-radius: 6px; outline: none; cursor: pointer;">
+        <option value="general">Informática General</option>
+        <option value="economia">Economía y Gestión</option>
+        <option value="fisica">Sistemas Físicos</option>
+        <option value="sostenibilidad">Medio Ambiente y Ética</option>
+      </select>
+
+      <div style="margin-top: 10px; display: flex; align-items: center; gap: 8px;">
+        <input type="checkbox" id="chkEximicionIngles" style="cursor: pointer; width: 18px; height: 18px;">
+        <label for="chkEximicionIngles"
+          style="font-size: 14px; color: #555; cursor: pointer; font-family: sans-serif; font-weight: bold;">Prueba de
+          Eximición de Inglés</label>
+      </div>
+
+      <button id="btnGraphOpt"
+        style="margin-top: 10px; padding: 12px; font-size: 16px; cursor: pointer; background-color: #28a745; color: white; border: none; border-radius: 8px; font-weight: bold; transition: background-color 0.2s;">
+        Aplicar Optimización
+      </button>
+    </div>
+
+    <!-- Panel de Estadísticas (Aparece al optimizar) -->
+    <div id="statsPanel"
+      style="position: absolute; top: 80px; right: 20px; z-index: 1002; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 8px 25px rgba(0,0,0,0.2); width: 320px; display: none; flex-direction: column; font-family: sans-serif;">
+      <h3 style="margin-top:0; color: #333; border-bottom: 2px solid #eee; padding-bottom: 10px; font-size: 16px;">
+        Dashboard de Optimización</h3>
+      <div id="statsContent" style="font-size: 14px; color: #444; line-height: 1.6;">
+      </div>
     </div>
 
     <!-- Contenedor dedicado exclusivamente al render de Vis.js para que no borre los botones -->
