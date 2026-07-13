@@ -25,13 +25,9 @@ Basado en los atributos que procesamos del HTML:
 ## 2. Variables de Decisión
 ¿Qué es lo que el algoritmo está decidiendo en el fondo?
 
-1.  **Variable de Fusión (Clustering):**
-    $$y_{ij} \in \{0, 1\} \quad \forall i, j \in N, i < j$$
-    $y_{ij} = 1$ si la asignatura $i$ y la asignatura $j$ deciden fusionarse en un Súper-Nodo, 0 en caso contrario.
-
-2.  **Variable de Asignación Temporal (Scheduling):**
+1.  **Variable de Asignación Temporal (Scheduling):**
     $$x_{is} \in \{0, 1\} \quad \forall i \in N, \forall s \in S$$
-    $x_{is} = 1$ si la asignatura $i$ (o el Súper-Nodo que la contiene) se imparte exactamente en el semestre $s$, 0 en caso contrario.
+    $x_{is} = 1$ si la asignatura $i$ se imparte exactamente en el semestre $s$, 0 en caso contrario.
 
 3.  **Variable de Tiempo (Auxiliar para Precedencia):**
     $$T_i = \sum_{s \in S} s \cdot x_{is}$$
@@ -43,40 +39,23 @@ Basado en los atributos que procesamos del HTML:
 Nuestro algoritmo busca lograr la malla más compacta posible en el tiempo, reduciendo el volumen de asignaturas pero penalizando fuertemente si nos pasamos del límite del Semestre 7.
 
 **Minimizar:**
-$$Z = \alpha \sum_{i \in N} T_i - \beta \sum_{i < j} y_{ij}$$
+$$Z = \sum_{i \in N} T_i$$
 
 *Donde:*
-*   El primer término "tira" todos los nodos hacia la izquierda (comprimiendo el tiempo hacia el semestre 1).
-*   El segundo término recompensa y maximiza la cantidad de fusiones logradas para reducir la carga visual.
-*   $\alpha$ y $\beta$ son pesos de calibración.
+*   El término "tira" todos los nodos hacia la izquierda (comprimiendo el tiempo hacia el semestre 1).
 
 ---
 
 ## 4. Restricciones (Requisitos Lógicos del Sistema)
 
-### A. Restricciones Estructurales de Fusión
-**1. Regla de Afinidad y Mismo Ciclo:**
-Dos ramos solo pueden fusionarse si pertenecen EXACTAMENTE a la misma área de conocimiento y al mismo nivel de profundidad:
-$$y_{ij} = 1 \implies A_i = A_j \quad \land \quad lvl_i = lvl_j \quad \forall i, j \in N$$
-
-**2. Exclusión de Protegidos (Intocables):**
-Ningún ramo protegido puede ser parte de una fusión:
-$$y_{ij} \le 1 - p_i \quad \text{y} \quad y_{ij} \le 1 - p_j \quad \forall i, j \in N$$
-
-**3. Límite de Absorción (Max 3 ramos por Súper-Nodo):**
-Si asumimos $y_{ij}$ como componentes conexas, el tamaño máximo del clúster $K$ no puede superar 3:
-$$\sum_{j \in N} y_{ij} \le 2 \quad \forall i \in N$$
-
----
-
-### B. Restricciones Topológicas y de Calendario (Eje X)
+### A. Restricciones Topológicas y de Calendario (Eje X)
 Estas garantizan que el flujo del Grafo Acíclico Dirigido (DAG) jamás retroceda en el tiempo y respete Bolonia.
 
-**4. Asignación Única:**
+**1. Asignación Única:**
 Cada asignatura debe existir en un único semestre:
 $$\sum_{s=1}^{S_{max}} x_{is} = 1 \quad \forall i \in N$$
 
-**5. Precedencia Estricta y Relajación Pedagógica (Co-requisitos):**
+**2. Precedencia Estricta y Relajación Pedagógica (Co-requisitos):**
 Por defecto, si un ramo $i$ abre al ramo $j$, el semestre de $j$ debe ser estrictamente mayor al de $i$:
 $$T_j \ge T_i + 1 \quad \forall (i,j) \in (E \setminus E_{flex})$$
 

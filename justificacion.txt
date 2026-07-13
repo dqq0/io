@@ -1,0 +1,28 @@
+================================================================================
+FUNDAMENTACIÓN TEÓRICA Y ACADÉMICA DEL SISTEMA DE OPTIMIZACIÓN CURRICULAR
+================================================================================
+
+1. ORIGEN DE LOS DATOS Y RESTRICCIONES (EL ESPACIO DE BÚSQUEDA)
+--------------------------------------------------------------------------------
+Los datos base de la malla (asignaturas, créditos, prerrequisitos, niveles de profundidad) provienen del currículum oficial de Ingeniería Civil Informática.
+Las restricciones del modelo se fundamentan en:
+- Prerrequisitos Duros (Topología): Fundamentado en la lógica secuencial del aprendizaje. Un conocimiento "B" depende de un conocimiento "A". Matemáticamente esto se modela como un Grafo Acíclico Dirigido (DAG).
+- Proceso de Bolonia (Niveles de Profundidad): El Acuerdo de Bolonia (1999) establece la estructuración de la educación superior en ciclos de competencias. En nuestro modelo, esto se traduce en la prohibición estricta de cursar ramos de Nivel 2 o superior en el Semestre 1, forzando una nivelación homogénea (Básicas) antes de la especialización.
+- Carga Cognitiva (Límite de Créditos L_max): Basado en el Sistema de Créditos Transferibles (SCT-Chile / ECTS europeo). Un estudiante promedio no puede absorber más de ~30 SCT por semestre de forma eficiente. Esto en Investigación de Operaciones (IO) equivale a una restricción de "Capacidad de Mochila" o "Resource-Constrained Project Scheduling Problem" (RCPSP).
+
+2. EL ALGORITMO HEURÍSTICO (CEREBRO JAVASCRIPT)
+--------------------------------------------------------------------------------
+La animación web actual implementa un enfoque "Greedy" (Goloso) basado en el Algoritmo de Kahn (1962).
+- ¿Por qué Kahn?: Es el estándar matemático para realizar ordenamientos topológicos en Grafos Acíclicos. Garantiza que ninguna asignatura se vea antes que sus prerrequisitos.
+- Modificación Greedy (Balanceo de Carga): Kahn clásico solo ordena. Nuestro algoritmo modificado agarra los ramos disponibles (In-Degree = 0) y los empuja lo más a la izquierda posible (minimizando el tiempo) HASTA que la mochila del semestre (L_max) se llena. Si se llena, el algoritmo toma una decisión local óptima (Greedy) de empujar el ramo al siguiente semestre.
+- Justificación del uso Greedy: En sistemas interactivos de frontend web, resolver un modelo MILP NP-Hard puede congelar el navegador. Una heurística Greedy entrega una solución "Suficientemente Buena" (Feasible and Near-Optimal) en tiempo O(V+E) (complejidad lineal), permitiendo animaciones en tiempo real (60 FPS) que pedagógicamente son invaluables.
+
+3. EL MODELO MILP (CEREBRO PYTHON)
+--------------------------------------------------------------------------------
+- Fundamento MILP (Mixed Integer Linear Programming): Formulado para evitar los óptimos locales de la heurística. Utiliza Branch and Bound (Ramificación y Acotamiento) para explorar el árbol de decisiones completo.
+- Función Objetivo: Minimizar la variable auxiliar temporal (Sumatoria de T_i). Esto matemáticamente presiona a la matriz de asignación X_is para que las variables binarias tomen valor 1 en los índices 's' más pequeños posibles (Semestres iniciales).
+- Diferencia vital: A diferencia del Greedy que decide paso a paso sin mirar al futuro, el MILP evalúa todas las combinaciones simultáneamente. Si enviar un ramo al semestre 2 permite abrir 4 ramos en el semestre 3, el MILP hará ese sacrificio; la heurística no, porque la heurística priorizaría llenar el semestre 1 a tope primero.
+
+================================================================================
+PREPARACIÓN PARA DEFENSA: Las preguntas de por qué usamos lo que usamos están resueltas aquí. El sistema es un híbrido entre un visualizador pedagógico rápido (Kahn/Greedy) y un motor teórico riguroso (MILP).
+================================================================================
